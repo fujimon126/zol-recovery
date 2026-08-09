@@ -1,0 +1,8 @@
+# Apps Script は合言葉を含むため公開リポジトリには入れない
+AppsScript.gs
+セットアップ手順.md
+
+# OS
+Thumbs.db
+desktop.ini
+.DS_Store

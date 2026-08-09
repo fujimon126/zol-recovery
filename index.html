@@ -1,0 +1,1285 @@
+<title>ゾール回収量記録</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>
+  :root {
+    --bg: #eef1ef;
+    --surface: #ffffff;
+    --surface-2: #e3e8e5;
+    --surface-3: #d5dcd8;
+    --text: #1b2422;
+    --text-muted: #5c6864;
+    --border: #ccd4d0;
+    --accent: #c9631a;
+    --accent-strong: #a84f11;
+    --accent-text: #fffaf5;
+    --good: #2f7f52;
+    --good-bg: #e3f1e7;
+    --warn: #9a6d0c;
+    --warn-bg: #f6ecd6;
+    --danger: #b23b2e;
+    --danger-bg: #fbe8e4;
+    --shadow: 0 1px 2px rgba(20,30,26,0.06), 0 4px 14px rgba(20,30,26,0.06);
+    --radius: 14px;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14191a;
+      --surface: #1d2425;
+      --surface-2: #262f30;
+      --surface-3: #333e3f;
+      --text: #e9ede9;
+      --text-muted: #9aa8a3;
+      --border: #35403f;
+      --accent: #ef8a3e;
+      --accent-strong: #ffa662;
+      --accent-text: #1a1000;
+      --good: #55c48a;
+      --good-bg: #16332376;
+      --warn: #e2b64c;
+      --warn-bg: #3a2f0f;
+      --danger: #ef7466;
+      --danger-bg: #3a1c17;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 6px 20px rgba(0,0,0,0.35);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #14191a; --surface: #1d2425; --surface-2: #262f30; --surface-3: #333e3f;
+    --text: #e9ede9; --text-muted: #9aa8a3; --border: #35403f;
+    --accent: #ef8a3e; --accent-strong: #ffa662; --accent-text: #1a1000;
+    --good: #55c48a; --good-bg: #16332376; --warn: #e2b64c; --warn-bg: #3a2f0f;
+    --danger: #ef7466; --danger-bg: #3a1c17;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 6px 20px rgba(0,0,0,0.35);
+    color-scheme: dark;
+  }
+  :root[data-theme="light"] {
+    --bg: #eef1ef; --surface: #ffffff; --surface-2: #e3e8e5; --surface-3: #d5dcd8;
+    --text: #1b2422; --text-muted: #5c6864; --border: #ccd4d0;
+    --accent: #c9631a; --accent-strong: #a84f11; --accent-text: #fffaf5;
+    --good: #2f7f52; --good-bg: #e3f1e7; --warn: #9a6d0c; --warn-bg: #f6ecd6;
+    --danger: #b23b2e; --danger-bg: #fbe8e4;
+    --shadow: 0 1px 2px rgba(20,30,26,0.06), 0 4px 14px rgba(20,30,26,0.06);
+    color-scheme: light;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Kaku Gothic ProN",
+      "Hiragino Sans", "Yu Gothic UI", "Noto Sans JP", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    display: flex;
+    justify-content: center;
+    min-height: 100vh;
+  }
+  #app {
+    width: 100%;
+    max-width: 480px;
+    min-height: 100vh;
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+    position: relative;
+  }
+  button { font-family: inherit; }
+  input, select { font-family: inherit; }
+
+  /* header */
+  header.topbar {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 16px 12px;
+  }
+  .brand {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+  .brand .mark {
+    width: 10px; height: 10px; border-radius: 3px;
+    background: var(--accent);
+    flex: none;
+    margin-bottom: 2px;
+  }
+  .brand h1 {
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    margin: 0;
+  }
+  .sync-pill {
+    margin-left: auto;
+    flex: none;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 9px;
+    cursor: pointer;
+    white-space: nowrap;
+    background: var(--surface-2);
+    color: var(--text-muted);
+  }
+  .sync-pill.ok { background: var(--good-bg); color: var(--good); }
+  .sync-pill.warn { background: var(--warn-bg); color: var(--warn); }
+  .sync-pill.err { background: var(--danger-bg); color: var(--danger); }
+  .sync-pill.busy { background: var(--surface-3); color: var(--text-muted); }
+  .factory-switch {
+    margin-top: 10px;
+  }
+  select.factory-select {
+    width: 100%;
+    appearance: none;
+    -webkit-appearance: none;
+    background: var(--surface-2) url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="%235c6864" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>') no-repeat right 12px center;
+    background-size: 14px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-size: 15px;
+    font-weight: 600;
+    padding: 10px 34px 10px 12px;
+  }
+
+  main {
+    flex: 1;
+    padding: 16px 16px 96px;
+  }
+  .hidden { display: none !important; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 16px;
+  }
+  .card + .card { margin-top: 12px; }
+  .section-label {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    margin: 0 0 10px;
+  }
+
+  /* stats strip */
+  .stats-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .stat {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    box-shadow: var(--shadow);
+  }
+  .stat .label { font-size: 12px; color: var(--text-muted); font-weight: 600; }
+  .stat .value {
+    font-size: 22px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    margin-top: 2px;
+  }
+  .stat .value .unit { font-size: 13px; font-weight: 600; color: var(--text-muted); margin-left: 2px; }
+
+  /* machine grid */
+  .machine-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .machine-btn {
+    text-align: left;
+    background: var(--surface-2);
+    border: 1.5px solid transparent;
+    border-radius: 10px;
+    padding: 10px 12px;
+    cursor: pointer;
+    transition: border-color 0.12s ease, background 0.12s ease;
+  }
+  .machine-btn .name { font-size: 13.5px; font-weight: 700; line-height: 1.25; }
+  .machine-btn .num { font-size: 12px; color: var(--text-muted); margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .machine-btn.active {
+    border-color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 14%, var(--surface-2));
+  }
+  .machine-btn.active .name { color: var(--accent-strong); }
+  .empty-note {
+    font-size: 13px;
+    color: var(--text-muted);
+    padding: 6px 2px;
+  }
+
+  /* form rows */
+  .field { margin-top: 14px; }
+  .field:first-child { margin-top: 0; }
+  .field label {
+    display: block;
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+  }
+  .num-input-wrap {
+    display: flex;
+    align-items: stretch;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .num-input-wrap input[type="number"] {
+    flex: 1;
+    min-width: 0;
+    border: none;
+    background: transparent;
+    color: var(--text);
+    font-size: 22px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    padding: 10px 8px;
+    text-align: center;
+    -moz-appearance: textfield;
+  }
+  .num-input-wrap input[type="number"]::-webkit-outer-spin-button,
+  .num-input-wrap input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none; margin: 0;
+  }
+  .stepper {
+    width: 46px;
+    flex: none;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 20px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .stepper:active { background: var(--surface-3); }
+  .num-input-wrap .unit-suffix {
+    display: flex; align-items: center;
+    padding-right: 12px;
+    color: var(--text-muted);
+    font-size: 13px;
+    font-weight: 700;
+  }
+  input[type="text"], input[type="datetime-local"] {
+    width: 100%;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-size: 15px;
+    padding: 10px 12px;
+  }
+  input:focus, select:focus, button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+
+  .btn-primary {
+    width: 100%;
+    background: var(--accent);
+    color: var(--accent-text);
+    border: none;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 700;
+    padding: 14px;
+    margin-top: 16px;
+    cursor: pointer;
+    transition: transform 0.08s ease, background 0.15s ease;
+  }
+  .btn-primary:active { transform: scale(0.98); background: var(--accent-strong); }
+  .btn-secondary {
+    background: var(--surface-2);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    font-size: 13.5px;
+    font-weight: 700;
+    padding: 10px 14px;
+    cursor: pointer;
+  }
+  .btn-secondary:active { background: var(--surface-3); }
+  .btn-danger-text {
+    background: none; border: none;
+    color: var(--danger);
+    font-size: 13px; font-weight: 700;
+    cursor: pointer; padding: 4px 6px;
+  }
+  .btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  /* history */
+  .filter-row { display: flex; gap: 8px; }
+  .filter-row select, .filter-row input[type="month"] {
+    flex: 1;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-size: 13.5px;
+    padding: 9px 10px;
+  }
+  .summary-strip {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px dashed var(--border);
+  }
+  .summary-strip div { text-align: center; flex: 1; }
+  .summary-strip .n { font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .summary-strip .l { font-size: 11px; color: var(--text-muted); font-weight: 600; margin-top: 1px; }
+
+  .log-group { margin-top: 14px; }
+  .log-date {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-muted);
+    margin: 0 0 6px 2px;
+  }
+  .log-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 10px;
+    margin-bottom: 6px;
+  }
+  .log-item .time {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+    width: 40px;
+    flex: none;
+  }
+  .log-item .meta { flex: 1; min-width: 0; }
+  .log-item .meta .m-name { font-size: 13.5px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .log-item .meta .m-sub { font-size: 11.5px; color: var(--text-muted); margin-top: 1px; }
+  .log-item .amount { text-align: right; flex: none; }
+  .log-item .amount .l { font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .log-item .amount .c { font-size: 11px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+  .log-item .del {
+    flex: none;
+    background: none; border: none;
+    color: var(--text-muted);
+    font-size: 16px;
+    cursor: pointer;
+    padding: 4px 2px 4px 6px;
+  }
+
+  /* settings */
+  .list-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 9px 2px;
+    border-bottom: 1px solid var(--border);
+  }
+  .list-row:last-child { border-bottom: none; }
+  .list-row .li-name { font-size: 14px; font-weight: 600; }
+  .list-row .li-sub { font-size: 12px; color: var(--text-muted); }
+  .add-inline { display: flex; gap: 8px; margin-top: 10px; }
+  .add-inline input { flex: 1; }
+  .add-inline .btn-secondary { flex: none; }
+
+  /* tabs */
+  nav.tabbar {
+    position: fixed;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: 0;
+    width: 100%;
+    max-width: 480px;
+    display: flex;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    padding: 6px 6px calc(6px + env(safe-area-inset-bottom));
+    z-index: 30;
+  }
+  .tab-btn {
+    flex: 1;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    padding: 6px 4px;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    border-radius: 10px;
+  }
+  .tab-btn svg { width: 21px; height: 21px; }
+  .tab-btn.active { color: var(--accent); }
+
+  .toast {
+    position: fixed;
+    left: 50%;
+    bottom: 84px;
+    transform: translateX(-50%) translateY(8px);
+    background: var(--text);
+    color: var(--bg);
+    font-size: 13.5px;
+    font-weight: 600;
+    padding: 10px 18px;
+    border-radius: 999px;
+    box-shadow: var(--shadow);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.18s ease, transform 0.18s ease;
+    z-index: 50;
+    white-space: nowrap;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  .share-url {
+    display: block;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 12.5px;
+    word-break: break-all;
+    color: var(--text-muted);
+    margin-top: 8px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+</style>
+
+<div id="app">
+  <header class="topbar">
+    <div class="brand">
+      <span class="mark"></span><h1>ゾール回収量記録</h1>
+      <button class="sync-pill off" id="syncPill" type="button">未接続</button>
+    </div>
+    <div class="factory-switch">
+      <select class="factory-select" id="factorySelect"></select>
+    </div>
+  </header>
+
+  <main id="main"></main>
+
+  <div class="toast" id="toast"></div>
+
+  <nav class="tabbar">
+    <button class="tab-btn active" data-tab="record">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>
+      記録
+    </button>
+    <button class="tab-btn" data-tab="history">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v5h5"/><path d="M3.05 13a9 9 0 1 0 2-6.36L3 8"/><path d="M12 7v5l4 2"/></svg>
+      履歴
+    </button>
+    <button class="tab-btn" data-tab="settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      設定
+    </button>
+  </nav>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var STORAGE_KEY = "zol-recovery-app-v1";
+  var SYNC_KEY = "zol-recovery-sync-v1";
+
+  function defaultState() {
+    var f1 = "亀山工場";
+    return {
+      factories: [f1],
+      machines: [
+        { id: uid(), factory: f1, name: "TOSEI HRD-301S", number: "1" },
+        { id: uid(), factory: f1, name: "TOSEI HRD-301S", number: "2" },
+        { id: uid(), factory: f1, name: "TOSEI HRD-301S", number: "3" },
+        { id: uid(), factory: f1, name: "YAMAMOTO VR-221D", number: "1" },
+        { id: uid(), factory: f1, name: "YAMAMOTO VR-221D", number: "2" },
+        { id: uid(), factory: f1, name: "QDF-151R", number: "1" }
+      ],
+      records: [],
+      ui: { factory: f1, machineId: null, recorder: "" }
+    };
+  }
+
+  function uid() {
+    if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+    return "id-" + Date.now() + "-" + Math.random().toString(16).slice(2);
+  }
+
+  function loadState() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return defaultState();
+      var s = JSON.parse(raw);
+      if (!s.factories || !s.factories.length) return defaultState();
+      s.ui = s.ui || {};
+      return s;
+    } catch (e) {
+      return defaultState();
+    }
+  }
+
+  function saveState() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  }
+
+  var state = loadState();
+  var activeTab = "record";
+  var pendingCount = 1;
+
+  // ---------- sync config ----------
+  function loadSyncCfg() {
+    try {
+      var raw = localStorage.getItem(SYNC_KEY);
+      if (raw) return JSON.parse(raw);
+    } catch (e) { /* fall through */ }
+    return { url: "", token: "", lastSync: "", device: "" };
+  }
+  function saveSyncCfg() { localStorage.setItem(SYNC_KEY, JSON.stringify(syncCfg)); }
+
+  var syncCfg = loadSyncCfg();
+  if (!syncCfg.device) { syncCfg.device = "端末-" + Math.random().toString(36).slice(2, 7); saveSyncCfg(); }
+
+  // The setup URL may carry the endpoint so a QR code can configure a phone in one scan.
+  (function adoptUrlParams() {
+    var p = new URLSearchParams(location.search);
+    var u = p.get("sync");
+    if (u && u !== syncCfg.url) {
+      syncCfg.url = u;
+      syncCfg.token = p.get("key") || syncCfg.token;
+      saveSyncCfg();
+      history.replaceState(null, "", location.pathname);
+    }
+  })();
+
+  var syncStatus = { busy: false, message: "", error: false };
+
+  // ---------- helpers ----------
+  function machinesFor(factory) {
+    return state.machines.filter(function (m) { return m.factory === factory; });
+  }
+  function recordsFor(factory) {
+    return state.records.filter(function (r) { return r.factory === factory; });
+  }
+  function findMachine(id) {
+    for (var i = 0; i < state.machines.length; i++) if (state.machines[i].id === id) return state.machines[i];
+    return null;
+  }
+  function pad2(n) { return n < 10 ? "0" + n : "" + n; }
+  function nowLocalInputValue() {
+    var d = new Date();
+    return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate()) + "T" + pad2(d.getHours()) + ":" + pad2(d.getMinutes());
+  }
+  function fmtDay(iso) {
+    var d = new Date(iso);
+    var wd = ["日", "月", "火", "水", "木", "金", "土"][d.getDay()];
+    return (d.getMonth() + 1) + "/" + d.getDate() + " (" + wd + ")";
+  }
+  function fmtTime(iso) {
+    var d = new Date(iso);
+    return pad2(d.getHours()) + ":" + pad2(d.getMinutes());
+  }
+  function todayKey() {
+    var d = new Date();
+    return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate());
+  }
+  function dayKey(iso) {
+    var d = new Date(iso);
+    return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate());
+  }
+  function monthKey(iso) {
+    var d = new Date(iso);
+    return d.getFullYear() + "-" + pad2(d.getMonth() + 1);
+  }
+  function fmtNum(n) {
+    var v = Math.round(n * 10) / 10;
+    return v.toLocaleString("ja-JP", { minimumFractionDigits: 0, maximumFractionDigits: 1 });
+  }
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+  var toastTimer = null;
+  function toast(msg) {
+    var el = document.getElementById("toast");
+    el.textContent = msg;
+    el.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { el.classList.remove("show"); }, 1800);
+  }
+
+  // ================= SHEETS SYNC =================
+  // Talks to a Google Apps Script web app. POSTs use text/plain so the browser
+  // treats them as simple requests — Apps Script cannot answer CORS preflight.
+  function syncConfigured() { return !!(syncCfg.url && /^https:\/\//.test(syncCfg.url)); }
+
+  function unsyncedRecords() {
+    return state.records.filter(function (r) { return !r.synced; });
+  }
+
+  function callSheet(payload) {
+    return fetch(syncCfg.url, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(payload)
+    }).then(function (res) {
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      return res.json();
+    }).then(function (data) {
+      if (!data || data.ok !== true) throw new Error((data && data.error) || "サーバーエラー");
+      return data;
+    });
+  }
+
+  function setSyncStatus(message, error, busy) {
+    syncStatus = { busy: !!busy, message: message, error: !!error };
+    renderSyncPill();
+  }
+
+  function renderSyncPill() {
+    var el = document.getElementById("syncPill");
+    if (!el) return;
+    if (!syncConfigured()) {
+      el.className = "sync-pill off";
+      el.textContent = "スプレッドシート未接続";
+      return;
+    }
+    var pending = unsyncedRecords().length;
+    if (syncStatus.busy) {
+      el.className = "sync-pill busy";
+      el.textContent = "同期中…";
+    } else if (syncStatus.error) {
+      el.className = "sync-pill err";
+      el.textContent = "同期エラー" + (pending ? " ・未送信" + pending + "件" : "");
+    } else if (pending) {
+      el.className = "sync-pill warn";
+      el.textContent = "未送信 " + pending + " 件";
+    } else {
+      el.className = "sync-pill ok";
+      el.textContent = "同期済み";
+    }
+  }
+
+  // Pushes anything not yet on the sheet, then pulls everything back so this
+  // phone also sees what other phones recorded.
+  function runSync(opts) {
+    opts = opts || {};
+    if (!syncConfigured()) {
+      if (opts.loud) toast("先に設定タブで同期URLを登録してください");
+      return Promise.resolve(false);
+    }
+    if (syncStatus.busy) return Promise.resolve(false);
+    setSyncStatus("", false, true);
+
+    var toPush = unsyncedRecords();
+    var pushPromise = toPush.length
+      ? callSheet({ action: "push", token: syncCfg.token, device: syncCfg.device, records: toPush })
+      : Promise.resolve({ ok: true });
+
+    return pushPromise.then(function () {
+      toPush.forEach(function (r) { r.synced = true; });
+      return callSheet({ action: "pull", token: syncCfg.token });
+    }).then(function (data) {
+      var incoming = data.records || [];
+      var known = {};
+      state.records.forEach(function (r) { known[r.id] = r; });
+      var added = 0;
+      incoming.forEach(function (r) {
+        if (!r || !r.id || known[r.id]) return;
+        if (r.factory && state.factories.indexOf(r.factory) === -1) state.factories.push(r.factory);
+        var machine = state.machines.find(function (m) {
+          return m.factory === r.factory && m.name === r.machineName && m.number === String(r.machineNumber);
+        });
+        if (!machine) {
+          machine = { id: uid(), factory: r.factory, name: r.machineName, number: String(r.machineNumber) };
+          state.machines.push(machine);
+        }
+        state.records.push({
+          id: r.id,
+          ts: r.ts,
+          factory: r.factory,
+          machineId: machine.id,
+          machineName: r.machineName,
+          machineNumber: String(r.machineNumber),
+          literL: Number(r.literL) || 0,
+          count: parseInt(r.count, 10) || 0,
+          recorder: r.recorder || "",
+          synced: true
+        });
+        added++;
+      });
+      syncCfg.lastSync = new Date().toISOString();
+      saveSyncCfg();
+      saveState();
+      setSyncStatus("", false, false);
+      renderFactorySelect();
+      if (opts.loud) {
+        toast("同期しました" + (toPush.length ? " ・送信" + toPush.length + "件" : "") + (added ? " ・受信" + added + "件" : ""));
+      }
+      if (opts.rerender !== false && (added || toPush.length)) renderMain();
+      return true;
+    }).catch(function (err) {
+      saveState();
+      setSyncStatus(String(err && err.message || err), true, false);
+      if (opts.loud) toast("同期できませんでした: " + (err && err.message || err));
+      return false;
+    });
+  }
+
+  // ---------- factory select (header) ----------
+  function renderFactorySelect() {
+    var sel = document.getElementById("factorySelect");
+    sel.innerHTML = state.factories.map(function (f) {
+      return '<option value="' + escapeHtml(f) + '"' + (f === state.ui.factory ? " selected" : "") + ">" + escapeHtml(f) + "</option>";
+    }).join("");
+    sel.onchange = function () {
+      state.ui.factory = sel.value;
+      state.ui.machineId = null;
+      saveState();
+      renderMain();
+    };
+  }
+
+  // ================= RECORD TAB =================
+  function renderRecordTab() {
+    var factory = state.ui.factory;
+    var mList = machinesFor(factory);
+    if (!mList.some(function (m) { return m.id === state.ui.machineId; })) {
+      state.ui.machineId = mList.length ? mList[0].id : null;
+    }
+
+    var lastRec = null;
+    recordsFor(factory).forEach(function (r) {
+      if (!lastRec || r.ts.localeCompare(lastRec.ts) > 0) lastRec = r;
+    });
+
+    var html = "";
+    html += '<div class="stats-row">';
+    html += '  <div class="stat"><div class="label">今回の回収量</div><div class="value">' + (lastRec ? fmtNum(lastRec.literL) : "—") + '<span class="unit">L</span></div></div>';
+    html += '  <div class="stat"><div class="label">今回の回転数</div><div class="value">' + (lastRec ? lastRec.count : "—") + '<span class="unit">回</span></div></div>';
+    html += '</div>';
+
+    html += '<div class="card">';
+    html += '  <p class="section-label">機械を選択</p>';
+    if (mList.length) {
+      html += '  <div class="machine-grid" id="machineGrid">';
+      mList.forEach(function (m) {
+        html += '<button type="button" class="machine-btn' + (m.id === state.ui.machineId ? " active" : "") + '" data-id="' + m.id + '">' +
+          '<div class="name">' + escapeHtml(m.name) + '</div><div class="num">No. ' + escapeHtml(m.number) + '</div></button>';
+      });
+      html += '  </div>';
+    } else {
+      html += '  <p class="empty-note">この工場にはまだ機械が登録されていません。「設定」タブから追加してください。</p>';
+    }
+    html += '</div>';
+
+    html += '<div class="card">';
+    html += '  <div class="field"><label for="literInput">回収量 (L)</label>';
+    html += '    <div class="num-input-wrap"><button type="button" class="stepper" data-step="-0.5">−</button>';
+    html += '      <input type="number" id="literInput" inputmode="decimal" step="0.1" min="0" placeholder="0.0">';
+    html += '      <button type="button" class="stepper" data-step="0.5">＋</button></div></div>';
+
+    html += '  <div class="field"><label for="countInput">回転数</label>';
+    html += '    <div class="num-input-wrap"><button type="button" class="stepper" data-count="-1">−</button>';
+    html += '      <input type="number" id="countInput" inputmode="numeric" min="0" value="' + pendingCount + '">';
+    html += '      <button type="button" class="stepper" data-count="1">＋</button></div></div>';
+
+    html += '  <div class="field"><label for="tsInput">日時</label>';
+    html += '    <input type="datetime-local" id="tsInput" value="' + nowLocalInputValue() + '"></div>';
+
+    html += '  <div class="field"><label for="recorderInput">記録者(任意)</label>';
+    html += '    <input type="text" id="recorderInput" placeholder="氏名" value="' + escapeHtml(state.ui.recorder || "") + '"></div>';
+
+    html += '  <button class="btn-primary" id="submitBtn" type="button" ' + (mList.length ? "" : "disabled") + '>記録する</button>';
+    html += '</div>';
+
+    document.getElementById("main").innerHTML = html;
+
+    document.querySelectorAll("#machineGrid .machine-btn").forEach(function (btn) {
+      btn.onclick = function () {
+        state.ui.machineId = btn.getAttribute("data-id");
+        saveState();
+        renderRecordTab();
+      };
+    });
+
+    var literInput = document.getElementById("literInput");
+    document.querySelectorAll(".stepper[data-step]").forEach(function (btn) {
+      btn.onclick = function () {
+        var step = parseFloat(btn.getAttribute("data-step"));
+        var cur = parseFloat(literInput.value) || 0;
+        var next = Math.max(0, Math.round((cur + step) * 10) / 10);
+        literInput.value = next === 0 ? "" : next;
+      };
+    });
+    var countInput = document.getElementById("countInput");
+    document.querySelectorAll(".stepper[data-count]").forEach(function (btn) {
+      btn.onclick = function () {
+        var step = parseInt(btn.getAttribute("data-count"), 10);
+        var cur = parseInt(countInput.value, 10) || 0;
+        countInput.value = Math.max(0, cur + step);
+      };
+    });
+
+    document.getElementById("submitBtn").onclick = function () {
+      var m = findMachine(state.ui.machineId);
+      if (!m) { toast("機械を選択してください"); return; }
+      var literVal = parseFloat(literInput.value);
+      var countVal = parseInt(countInput.value, 10);
+      var tsVal = document.getElementById("tsInput").value;
+      var recorder = document.getElementById("recorderInput").value.trim();
+      if (isNaN(literVal) && isNaN(countVal)) { toast("回収量か回転数を入力してください"); return; }
+      if (!tsVal) { toast("日時を入力してください"); return; }
+
+      state.records.push({
+        id: uid(),
+        ts: new Date(tsVal).toISOString(),
+        factory: factory,
+        machineId: m.id,
+        machineName: m.name,
+        machineNumber: m.number,
+        literL: isNaN(literVal) ? 0 : literVal,
+        count: isNaN(countVal) ? 0 : countVal,
+        recorder: recorder,
+        synced: false
+      });
+      state.ui.recorder = recorder;
+      pendingCount = isNaN(countVal) ? 1 : countVal;
+      saveState();
+      toast("記録しました");
+      renderMain();
+      // Saved locally first, so a dead signal never loses the entry.
+      if (syncConfigured()) runSync({ rerender: false });
+    };
+  }
+
+  // ================= HISTORY TAB =================
+  var historyFilter = { factory: "__all__", month: "" };
+
+  function renderHistoryTab() {
+    var all = state.records.slice().sort(function (a, b) { return b.ts.localeCompare(a.ts); });
+    var filtered = all.filter(function (r) {
+      if (historyFilter.factory !== "__all__" && r.factory !== historyFilter.factory) return false;
+      if (historyFilter.month && monthKey(r.ts) !== historyFilter.month) return false;
+      return true;
+    });
+
+    var totalL = filtered.reduce(function (a, r) { return a + r.literL; }, 0);
+    var totalC = filtered.reduce(function (a, r) { return a + r.count; }, 0);
+
+    var html = '<div class="card">';
+    html += '  <p class="section-label">絞り込み</p>';
+    html += '  <div class="filter-row">';
+    html += '    <select id="filterFactory"><option value="__all__">すべての工場</option>' +
+      state.factories.map(function (f) { return '<option value="' + escapeHtml(f) + '"' + (f === historyFilter.factory ? " selected" : "") + ">" + escapeHtml(f) + "</option>"; }).join("") +
+      '</select>';
+    html += '    <input type="month" id="filterMonth" value="' + historyFilter.month + '">';
+    html += '  </div>';
+    html += '  <div class="summary-strip">';
+    html += '    <div><div class="n">' + fmtNum(totalL) + ' L</div><div class="l">合計回収量</div></div>';
+    html += '    <div><div class="n">' + totalC + ' 回</div><div class="l">合計回転数</div></div>';
+    html += '    <div><div class="n">' + filtered.length + ' 件</div><div class="l">記録件数</div></div>';
+    html += '  </div>';
+    html += '</div>';
+
+    if (!filtered.length) {
+      html += '<p class="empty-note" style="margin-top:14px;">条件に一致する記録がありません。</p>';
+    } else {
+      var groups = {};
+      var order = [];
+      filtered.forEach(function (r) {
+        var k = dayKey(r.ts);
+        if (!groups[k]) { groups[k] = []; order.push(k); }
+        groups[k].push(r);
+      });
+      order.forEach(function (k) {
+        html += '<div class="log-group"><p class="log-date">' + fmtDay(groups[k][0].ts) + '</p>';
+        groups[k].forEach(function (r) {
+          html += '<div class="log-item">';
+          html += '  <div class="time">' + fmtTime(r.ts) + '</div>';
+          html += '  <div class="meta"><div class="m-name">' + escapeHtml(r.machineName) + ' No.' + escapeHtml(r.machineNumber) + '</div>';
+          html += '    <div class="m-sub">' + escapeHtml(r.factory) + (r.recorder ? " ・ " + escapeHtml(r.recorder) : "") + '</div></div>';
+          html += '  <div class="amount"><div class="l">' + fmtNum(r.literL) + ' L</div><div class="c">' + r.count + ' 回</div></div>';
+          html += '  <button class="del" data-id="' + r.id + '" title="削除">✕</button>';
+          html += '</div>';
+        });
+        html += '</div>';
+      });
+    }
+
+    html += '<div class="card" style="margin-top:14px;">';
+    html += '  <p class="section-label">データ共有</p>';
+    html += '  <div class="btn-row">';
+    html += '    <button class="btn-secondary" id="exportCsvBtn" type="button">CSVをエクスポート</button>';
+    html += '    <button class="btn-secondary" id="importCsvBtn" type="button">CSVを取り込む</button>';
+    html += '  </div>';
+    html += '  <input type="file" id="csvFile" accept=".csv,text/csv" class="hidden">';
+    html += '  <p class="empty-note" style="margin-top:8px;">他のスマホでエクスポートしたCSVをこの端末に取り込んで合算できます。</p>';
+    html += '</div>';
+
+    document.getElementById("main").innerHTML = html;
+
+    document.getElementById("filterFactory").onchange = function (e) { historyFilter.factory = e.target.value; renderHistoryTab(); };
+    document.getElementById("filterMonth").onchange = function (e) { historyFilter.month = e.target.value; renderHistoryTab(); };
+    document.querySelectorAll(".log-item .del").forEach(function (btn) {
+      btn.onclick = function () {
+        var id = btn.getAttribute("data-id");
+        if (!confirm("この記録を削除しますか?")) return;
+        var wasSynced = state.records.some(function (r) { return r.id === id && r.synced; });
+        state.records = state.records.filter(function (r) { return r.id !== id; });
+        saveState();
+        renderHistoryTab();
+        // Remove it from the sheet too, or the next pull would bring it back.
+        if (wasSynced && syncConfigured()) {
+          callSheet({ action: "delete", token: syncCfg.token, id: id }).then(function () {
+            toast("スプレッドシートからも削除しました");
+          }).catch(function (err) {
+            toast("シート側の削除に失敗しました: " + (err && err.message || err));
+          });
+        }
+      };
+    });
+    document.getElementById("exportCsvBtn").onclick = function () { exportCsv(filtered); };
+    document.getElementById("importCsvBtn").onclick = function () { document.getElementById("csvFile").click(); };
+    document.getElementById("csvFile").onchange = function (e) {
+      var file = e.target.files[0];
+      if (!file) return;
+      var reader = new FileReader();
+      reader.onload = function () { importCsv(reader.result); e.target.value = ""; };
+      reader.readAsText(file, "utf-8");
+    };
+  }
+
+  function csvField(v) {
+    v = String(v == null ? "" : v);
+    if (/[",\n]/.test(v)) return '"' + v.replace(/"/g, '""') + '"';
+    return v;
+  }
+
+  function exportCsv(records) {
+    var header = ["日時", "工場", "機械名", "機械番号", "回収量L", "回転数", "記録者"];
+    var lines = [header.join(",")];
+    records.slice().sort(function (a, b) { return a.ts.localeCompare(b.ts); }).forEach(function (r) {
+      lines.push([r.ts, r.factory, r.machineName, r.machineNumber, r.literL, r.count, r.recorder || ""].map(csvField).join(","));
+    });
+    var csv = "﻿" + lines.join("\r\n");
+    var fname = "zol_" + todayKey() + ".csv";
+    saveFile(fname, csv, "csv");
+  }
+
+  function saveFile(filename, content, ext) {
+    if (window.claude && window.claude.downloads) {
+      window.claude.downloads.save({ filename: filename, data: content }).then(function () {
+        toast("保存しました: " + filename);
+      }).catch(function (err) {
+        if (err && err.code === "extension_not_enabled" && ext !== "txt") {
+          var altName = filename.replace(/\.[a-z0-9]+$/i, "") + ".txt";
+          saveFile(altName, content, "txt");
+        } else if (err && err.code === "declined") {
+          // user declined; no message needed
+        } else {
+          toast("保存できませんでした");
+        }
+      });
+    } else {
+      toast("この環境ではファイル保存が利用できません");
+    }
+  }
+
+  function parseCsvLine(line) {
+    var out = []; var cur = ""; var inQ = false;
+    for (var i = 0; i < line.length; i++) {
+      var c = line[i];
+      if (inQ) {
+        if (c === '"') {
+          if (line[i + 1] === '"') { cur += '"'; i++; } else { inQ = false; }
+        } else cur += c;
+      } else {
+        if (c === '"') inQ = true;
+        else if (c === ',') { out.push(cur); cur = ""; }
+        else cur += c;
+      }
+    }
+    out.push(cur);
+    return out;
+  }
+
+  function importCsv(text) {
+    text = text.replace(/^﻿/, "");
+    var lines = text.split(/\r\n|\n|\r/).filter(function (l) { return l.trim().length; });
+    if (lines.length < 2) { toast("読み込めるデータがありません"); return; }
+    var rows = lines.slice(1).map(parseCsvLine);
+    var added = 0;
+    rows.forEach(function (cols) {
+      if (cols.length < 6) return;
+      var ts = cols[0], factory = cols[1], mName = cols[2], mNum = cols[3];
+      var literL = parseFloat(cols[4]) || 0;
+      var count = parseInt(cols[5], 10) || 0;
+      var recorder = cols[6] || "";
+      var tsIso;
+      var d = new Date(ts);
+      tsIso = isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString();
+
+      if (factory && state.factories.indexOf(factory) === -1) state.factories.push(factory);
+      var machine = state.machines.find(function (m) { return m.factory === factory && m.name === mName && m.number === mNum; });
+      if (!machine) {
+        machine = { id: uid(), factory: factory, name: mName, number: mNum };
+        state.machines.push(machine);
+      }
+      var dup = state.records.some(function (r) {
+        return r.ts === tsIso && r.factory === factory && r.machineId === machine.id && r.literL === literL && r.count === count;
+      });
+      if (dup) return;
+      state.records.push({
+        id: uid(), ts: tsIso, factory: factory, machineId: machine.id,
+        machineName: mName, machineNumber: mNum, literL: literL, count: count,
+        recorder: recorder, synced: false
+      });
+      added++;
+    });
+    saveState();
+    toast(added + "件を取り込みました");
+    renderFactorySelect();
+    renderHistoryTab();
+  }
+
+  // ================= SETTINGS TAB =================
+  function renderSettingsTab() {
+    var factory = state.ui.factory;
+    var html = "";
+
+    html += '<div class="card">';
+    html += '  <p class="section-label">工場を管理</p>';
+    state.factories.forEach(function (f) {
+      html += '<div class="list-row"><span class="li-name">' + escapeHtml(f) + '</span>';
+      html += (state.factories.length > 1 ? '<button class="btn-danger-text" data-del-factory="' + escapeHtml(f) + '">削除</button>' : '') + '</div>';
+    });
+    html += '  <div class="add-inline"><input type="text" id="newFactory" placeholder="新しい工場名"><button class="btn-secondary" id="addFactoryBtn" type="button">追加</button></div>';
+    html += '</div>';
+
+    html += '<div class="card">';
+    html += '  <p class="section-label">機械を管理(' + escapeHtml(factory) + ')</p>';
+    var mList = machinesFor(factory);
+    if (mList.length) {
+      mList.forEach(function (m) {
+        html += '<div class="list-row"><span><span class="li-name">' + escapeHtml(m.name) + '</span> <span class="li-sub">No.' + escapeHtml(m.number) + '</span></span>';
+        html += '<button class="btn-danger-text" data-del-machine="' + m.id + '">削除</button></div>';
+      });
+    } else {
+      html += '<p class="empty-note">機械が登録されていません。</p>';
+    }
+    html += '  <div class="add-inline"><input type="text" id="newMachineName" placeholder="機械名 例) TOSEI HRD-301S" style="flex:2;">';
+    html += '    <input type="text" id="newMachineNum" placeholder="番号" style="flex:1;"></div>';
+    html += '  <button class="btn-secondary" id="addMachineBtn" type="button" style="margin-top:8px; width:100%;">機械を追加</button>';
+    html += '</div>';
+
+    html += '<div class="card">';
+    html += '  <p class="section-label">スプレッドシート同期</p>';
+    html += '  <div class="field"><label for="syncUrlInput">同期URL (Apps Script ウェブアプリ)</label>';
+    html += '    <input type="text" id="syncUrlInput" placeholder="https://script.google.com/macros/s/..." value="' + escapeHtml(syncCfg.url) + '"></div>';
+    html += '  <div class="field"><label for="syncTokenInput">合言葉</label>';
+    html += '    <input type="text" id="syncTokenInput" placeholder="Apps Script に設定した合言葉" value="' + escapeHtml(syncCfg.token) + '"></div>';
+    html += '  <div class="btn-row" style="margin-top:12px;">';
+    html += '    <button class="btn-secondary" id="saveSyncBtn" type="button">保存して接続テスト</button>';
+    html += '    <button class="btn-secondary" id="syncNowBtn" type="button">今すぐ同期</button>';
+    html += '  </div>';
+    var pend = unsyncedRecords().length;
+    html += '  <p class="empty-note" style="margin-top:10px;">' +
+      (syncCfg.lastSync ? "最終同期: " + new Date(syncCfg.lastSync).toLocaleString("ja-JP") : "まだ同期していません") +
+      (pend ? " ・未送信 " + pend + " 件" : "") + '</p>';
+    if (syncStatus.error && syncStatus.message) {
+      html += '  <p class="empty-note" style="color:var(--danger);">エラー: ' + escapeHtml(syncStatus.message) + '</p>';
+    }
+    if (syncConfigured()) {
+      html += '  <p class="section-label" style="margin-top:16px;">この設定を他のスマホへ</p>';
+      html += '  <span class="share-url" id="setupUrl"></span>';
+      html += '  <div class="btn-row" style="margin-top:8px;"><button class="btn-secondary" id="copySetupBtn" type="button">設定リンクをコピー</button></div>';
+      html += '  <p class="empty-note" style="margin-top:6px;">このリンクを開いた端末は同期設定が自動で入ります。</p>';
+    }
+    html += '</div>';
+
+    html += '<div class="card">';
+    html += '  <p class="section-label">共有</p>';
+    html += '  <p class="empty-note">下のURLを他のスマホで開くと同じ記録アプリが使えます(データは端末ごとに保存され、履歴タブのCSV機能で合算できます)。QRコードは印刷用に別途お渡しします。</p>';
+    html += '  <span class="share-url" id="shareUrl"></span>';
+    html += '  <div class="btn-row" style="margin-top:8px;"><button class="btn-secondary" id="copyUrlBtn" type="button">URLをコピー</button></div>';
+    html += '</div>';
+
+    html += '<div class="card">';
+    html += '  <p class="section-label">データのバックアップ</p>';
+    html += '  <div class="btn-row">';
+    html += '    <button class="btn-secondary" id="exportJsonBtn" type="button">全データをバックアップ</button>';
+    html += '    <button class="btn-secondary" id="importJsonBtn" type="button">バックアップを復元</button>';
+    html += '  </div>';
+    html += '  <input type="file" id="jsonFile" accept=".json,application/json" class="hidden">';
+    html += '  <div class="btn-row" style="margin-top:10px;"><button class="btn-danger-text" id="clearAllBtn" type="button">全データを削除</button></div>';
+    html += '</div>';
+
+    document.getElementById("main").innerHTML = html;
+    document.getElementById("shareUrl").textContent = location.origin + location.pathname;
+
+    function setupLink() {
+      var base = location.origin + location.pathname;
+      return base + "?sync=" + encodeURIComponent(syncCfg.url) + (syncCfg.token ? "&key=" + encodeURIComponent(syncCfg.token) : "");
+    }
+    var setupUrlEl = document.getElementById("setupUrl");
+    if (setupUrlEl) setupUrlEl.textContent = setupLink();
+    var copySetupBtn = document.getElementById("copySetupBtn");
+    if (copySetupBtn) copySetupBtn.onclick = function () {
+      navigator.clipboard && navigator.clipboard.writeText(setupLink()).then(function () {
+        toast("設定リンクをコピーしました");
+      }).catch(function () { toast("コピーできませんでした"); });
+    };
+
+    document.getElementById("saveSyncBtn").onclick = function () {
+      syncCfg.url = document.getElementById("syncUrlInput").value.trim();
+      syncCfg.token = document.getElementById("syncTokenInput").value.trim();
+      saveSyncCfg();
+      if (!syncConfigured()) { toast("https:// で始まるURLを入力してください"); renderSyncPill(); return; }
+      runSync({ loud: true, rerender: false }).then(function () { renderSettingsTab(); });
+    };
+    document.getElementById("syncNowBtn").onclick = function () {
+      runSync({ loud: true, rerender: false }).then(function () { renderSettingsTab(); });
+    };
+
+    document.getElementById("addFactoryBtn").onclick = function () {
+      var input = document.getElementById("newFactory");
+      var name = input.value.trim();
+      if (!name) return;
+      if (state.factories.indexOf(name) !== -1) { toast("すでに存在します"); return; }
+      state.factories.push(name);
+      state.ui.factory = name;
+      saveState();
+      renderFactorySelect();
+      renderSettingsTab();
+    };
+    document.querySelectorAll("[data-del-factory]").forEach(function (btn) {
+      btn.onclick = function () {
+        var f = btn.getAttribute("data-del-factory");
+        if (!confirm(f + " を削除しますか? 関連する機械と記録も削除されます。")) return;
+        state.factories = state.factories.filter(function (x) { return x !== f; });
+        state.machines = state.machines.filter(function (m) { return m.factory !== f; });
+        state.records = state.records.filter(function (r) { return r.factory !== f; });
+        if (state.ui.factory === f) state.ui.factory = state.factories[0];
+        saveState();
+        renderFactorySelect();
+        renderSettingsTab();
+      };
+    });
+
+    document.getElementById("addMachineBtn").onclick = function () {
+      var name = document.getElementById("newMachineName").value.trim();
+      var num = document.getElementById("newMachineNum").value.trim();
+      if (!name || !num) { toast("機械名と番号を入力してください"); return; }
+      state.machines.push({ id: uid(), factory: factory, name: name, number: num });
+      saveState();
+      renderSettingsTab();
+    };
+    document.querySelectorAll("[data-del-machine]").forEach(function (btn) {
+      btn.onclick = function () {
+        var id = btn.getAttribute("data-del-machine");
+        if (!confirm("この機械を削除しますか?")) return;
+        state.machines = state.machines.filter(function (m) { return m.id !== id; });
+        saveState();
+        renderSettingsTab();
+      };
+    });
+
+    document.getElementById("copyUrlBtn").onclick = function () {
+      navigator.clipboard && navigator.clipboard.writeText(location.href).then(function () {
+        toast("URLをコピーしました");
+      }).catch(function () { toast("コピーできませんでした"); });
+    };
+
+    document.getElementById("exportJsonBtn").onclick = function () {
+      saveFile("zol_backup_" + todayKey() + ".json", JSON.stringify(state, null, 2), "json");
+    };
+    document.getElementById("importJsonBtn").onclick = function () { document.getElementById("jsonFile").click(); };
+    document.getElementById("jsonFile").onchange = function (e) {
+      var file = e.target.files[0];
+      if (!file) return;
+      var reader = new FileReader();
+      reader.onload = function () {
+        try {
+          var data = JSON.parse(reader.result);
+          if (!data.factories || !data.machines || !data.records) throw new Error("invalid");
+          if (!confirm("現在のデータを置き換えて復元しますか?")) return;
+          state = data;
+          state.ui = state.ui || { factory: state.factories[0] };
+          saveState();
+          renderFactorySelect();
+          renderSettingsTab();
+          toast("復元しました");
+        } catch (err) {
+          toast("バックアップファイルを読み込めませんでした");
+        }
+      };
+      reader.readAsText(file, "utf-8");
+      e.target.value = "";
+    };
+    document.getElementById("clearAllBtn").onclick = function () {
+      if (!confirm("すべてのデータを削除します。よろしいですか?")) return;
+      state = defaultState();
+      saveState();
+      renderFactorySelect();
+      renderSettingsTab();
+    };
+  }
+
+  // ================= TAB SWITCH =================
+  function renderMain() {
+    if (activeTab === "record") renderRecordTab();
+    else if (activeTab === "history") renderHistoryTab();
+    else renderSettingsTab();
+    renderSyncPill();
+  }
+
+  document.querySelectorAll(".tab-btn").forEach(function (btn) {
+    btn.onclick = function () {
+      activeTab = btn.getAttribute("data-tab");
+      document.querySelectorAll(".tab-btn").forEach(function (b) { b.classList.toggle("active", b === btn); });
+      renderMain();
+    };
+  });
+
+  document.getElementById("syncPill").onclick = function () {
+    if (!syncConfigured()) {
+      activeTab = "settings";
+      document.querySelectorAll(".tab-btn").forEach(function (b) {
+        b.classList.toggle("active", b.getAttribute("data-tab") === "settings");
+      });
+      renderMain();
+      return;
+    }
+    runSync({ loud: true });
+  };
+
+  renderFactorySelect();
+  renderMain();
+  renderSyncPill();
+
+  if (syncConfigured()) runSync({});
+  window.addEventListener("online", function () { if (syncConfigured()) runSync({}); });
+})();
+</script>

@@ -616,6 +616,122 @@
   svg.qr { display: block; width: 100%; height: auto; }
   .qr-sub { font-size: 11.5px; color: var(--text-muted); line-height: 1.6; margin: 0 0 14px; }
 
+  /* ---- 掲示用ポスター ---- */
+  .poster-sheet {
+    position: fixed;
+    inset: 0;
+    z-index: 70;
+    display: none;
+    overflow-y: auto;
+    background: rgba(10, 16, 15, 0.62);
+    padding: 16px;
+  }
+  .poster-sheet.show { display: block; }
+  .poster-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    max-width: 620px;
+    margin: 0 auto 12px;
+  }
+  .poster {
+    background: #ffffff;
+    color: #17201e;
+    max-width: 620px;
+    margin: 0 auto;
+    padding: 30px 32px 26px;
+    border-radius: 4px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Kaku Gothic ProN",
+      "Yu Gothic UI", "Noto Sans JP", sans-serif;
+  }
+  .poster .p-eyebrow {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    color: #c9631a;
+    margin: 0 0 10px;
+  }
+  .poster h2 {
+    font-size: 30px;
+    line-height: 1.25;
+    font-weight: 800;
+    margin: 0 0 10px;
+    text-wrap: balance;
+    color: #17201e;
+  }
+  .poster .p-lead { font-size: 14px; line-height: 1.75; color: #4d5a56; margin: 0 0 22px; }
+  .p-qr-block {
+    display: flex;
+    align-items: center;
+    gap: 22px;
+    border: 2.5px solid #17201e;
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 22px;
+  }
+  .p-qr-block .p-qr { width: 190px; flex: none; }
+  .p-qr-block .p-qr svg { display: block; width: 100%; height: auto; }
+  .p-qr-side .p-big { font-size: 19px; font-weight: 800; line-height: 1.45; color: #17201e; }
+  .p-qr-side .p-small { font-size: 12.5px; color: #4d5a56; margin-top: 10px; line-height: 1.6; }
+  .poster h3 {
+    font-size: 15px;
+    font-weight: 800;
+    margin: 0 0 12px;
+    padding-bottom: 6px;
+    border-bottom: 2px solid #c9631a;
+    color: #17201e;
+  }
+  .poster ol { margin: 0 0 22px; padding-left: 22px; }
+  .poster ol li { font-size: 14.5px; line-height: 2; color: #17201e; }
+  .p-note {
+    background: #fdf3e9;
+    border-left: 4px solid #c9631a;
+    padding: 14px 16px;
+    font-size: 12.5px;
+    line-height: 1.8;
+    color: #17201e;
+  }
+  .p-note b { display: block; margin-bottom: 4px; font-size: 13px; }
+  .p-warn {
+    margin-top: 14px;
+    border: 1.5px dashed #b23b2e;
+    color: #b23b2e;
+    border-radius: 6px;
+    padding: 10px 14px;
+    font-size: 12px;
+    line-height: 1.7;
+    font-weight: 600;
+  }
+  .p-foot {
+    margin-top: 18px;
+    padding-top: 10px;
+    border-top: 1px solid #ccd4d0;
+    font-size: 10.5px;
+    color: #77837f;
+  }
+
+  @media print {
+    @page { size: A4 portrait; margin: 14mm; }
+    body { background: #fff; display: block; }
+    #app, .toast, .qr-sheet { display: none !important; }
+    .poster-sheet {
+      display: block !important;
+      position: static;
+      inset: auto;
+      background: none;
+      padding: 0;
+      overflow: visible;
+    }
+    .poster-actions { display: none !important; }
+    .poster {
+      box-shadow: none;
+      border-radius: 0;
+      max-width: none;
+      padding: 0;
+    }
+  }
+
   .toast {
     position: fixed;
     left: 50%;
@@ -669,6 +785,7 @@
   <div class="qr-sheet" id="qrSheet"></div>
   <div class="toast" id="toast"></div>
 
+
   <nav class="tabbar">
     <button class="tab-btn active" data-tab="record">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>
@@ -678,12 +795,14 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v5h5"/><path d="M3.05 13a9 9 0 1 0 2-6.36L3 8"/><path d="M12 7v5l4 2"/></svg>
       履歴
     </button>
-    <button class="tab-btn" data-tab="settings">
+    <button class="tab-btn" data-tab="settings" id="settingsTabBtn">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
       設定
     </button>
   </nav>
 </div>
+
+<div class="poster-sheet" id="posterSheet"></div>
 
 <script>
 (function () {
@@ -1815,6 +1934,7 @@
       html += '  <span class="share-url" id="setupUrl"></span>';
       html += '  <div class="btn-row" style="margin-top:8px;">';
       html += '    <button class="btn-secondary" id="showQrBtn" type="button">QRコードを表示</button>';
+      html += '    <button class="btn-secondary" id="posterBtn" type="button">掲示用ポスター</button>';
       html += '    <button class="btn-secondary" id="copySetupBtn" type="button">設定リンクをコピー</button>';
       html += '  </div>';
       html += '  <p class="empty-note" style="margin-top:6px;">QRコードを作業者のスマホで読み取れば、同期設定まで自動で入ります。合言葉が入るため、社外の人が見る場所には貼らないでください。</p>';
@@ -1866,6 +1986,9 @@
     if (setupUrlEl) setupUrlEl.textContent = setupLink();
     var showQrBtn = document.getElementById("showQrBtn");
     if (showQrBtn) showQrBtn.onclick = function () { openQrSheet(setupLink()); };
+
+    var posterBtn = document.getElementById("posterBtn");
+    if (posterBtn) posterBtn.onclick = function () { openPoster(setupLink(), state.ui.factory); };
 
     var copySetupBtn = document.getElementById("copySetupBtn");
     if (copySetupBtn) copySetupBtn.onclick = function () {
@@ -2015,6 +2138,58 @@
     document.addEventListener("keydown", qrEscHandler);
     document.getElementById("qrCloseBtn").focus();
   }
+  // 掲示用ポスター。QRは端末の同期設定から作るので、貼り紙と設定が必ず一致する。
+  function openPoster(link, factory) {
+    var svg = QR.toSvg(link);
+    if (!svg) { toast("リンクが長すぎてQRコードを作れませんでした"); return; }
+    var el = document.getElementById("posterSheet");
+    el.innerHTML =
+      '<div class="poster-actions">' +
+      '  <button class="btn-secondary" id="posterPrintBtn" type="button">印刷する</button>' +
+      '  <button class="btn-secondary" id="posterCloseBtn" type="button">閉じる</button>' +
+      '</div>' +
+      '<div class="poster">' +
+      '  <p class="p-eyebrow">ゾール回収量測定</p>' +
+      '  <h2>回収したら<br>スマホで記録してください</h2>' +
+      '  <p class="p-lead">紙のチェック用紙の代わりに、スマートフォンから追加量・回収量・回転数を入力します。' +
+      '    入力した内容は自動でスプレッドシートにまとまります。</p>' +
+      '  <div class="p-qr-block">' +
+      '    <div class="p-qr">' + svg + '</div>' +
+      '    <div class="p-qr-side">' +
+      '      <div class="p-big">スマホのカメラで<br>読み取ってください</div>' +
+      '      <div class="p-small">初回の設定は不要です。読み取るだけで記録を始められます。</div>' +
+      '    </div>' +
+      '  </div>' +
+      '  <h3>記録のしかた</h3>' +
+      '  <ol>' +
+      '    <li>QRコードを読み取ってアプリを開く</li>' +
+      '    <li>いちばん上で工場が「' + escapeHtml(factory) + '」になっているか確認する</li>' +
+      '    <li>作業した<b>機械のボタン</b>を選ぶ</li>' +
+      '    <li><b>追加量 (L)</b>・<b>回収量 (L)</b>・<b>回転数</b> を入力する</li>' +
+      '    <li><b>記録する</b> をタップ</li>' +
+      '  </ol>' +
+      '  <div class="p-note"><b>電波がなくても大丈夫です</b>' +
+      '    記録はまずスマホの中に保存され、電波が戻ったときに自動でスプレッドシートへ送られます。' +
+      '    画面の上に「未送信 ◯件」と出ているときは、電波の良い場所でアプリを開いてください。' +
+      '    その表示をタップすると手動で送ることもできます。</div>' +
+      '  <div class="p-warn">この紙のQRコードには接続用の合言葉が入っています。' +
+      '    社外の人の目に触れる場所には貼らないでください。</div>' +
+      '  <p class="p-foot">ゾール回収量記録アプリ ／ ' + escapeHtml(factory) + '</p>' +
+      '</div>';
+    el.classList.add("show");
+    document.getElementById("posterCloseBtn").onclick = closePoster;
+    document.getElementById("posterPrintBtn").onclick = function () { window.print(); };
+    document.addEventListener("keydown", posterEscHandler);
+    document.getElementById("posterCloseBtn").focus();
+  }
+  function posterEscHandler(e) { if (e.key === "Escape") closePoster(); }
+  function closePoster() {
+    var el = document.getElementById("posterSheet");
+    el.classList.remove("show");
+    el.innerHTML = "";
+    document.removeEventListener("keydown", posterEscHandler);
+  }
+
   function qrEscHandler(e) { if (e.key === "Escape") closeQrSheet(); }
   function closeQrSheet() {
     var el = document.getElementById("qrSheet");

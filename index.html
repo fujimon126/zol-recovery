@@ -703,14 +703,6 @@
     line-height: 1.7;
     font-weight: 600;
   }
-  .p-foot {
-    margin-top: 18px;
-    padding-top: 10px;
-    border-top: 1px solid #ccd4d0;
-    font-size: 10.5px;
-    color: #77837f;
-  }
-
   @media print {
     @page { size: A4 portrait; margin: 14mm; }
     body { background: #fff; display: block; }
@@ -1916,14 +1908,24 @@
 
     html += '<div class="card">';
     html += '  <p class="section-label">スプレッドシート同期</p>';
-    html += '  <div class="field"><label for="syncUrlInput">同期URL (Apps Script ウェブアプリ)</label>';
-    html += '    <input type="text" id="syncUrlInput" placeholder="https://script.google.com/macros/s/..." value="' + escapeHtml(syncCfg.url) + '"></div>';
-    html += '  <div class="field"><label for="syncTokenInput">合言葉</label>';
-    html += '    <input type="text" id="syncTokenInput" placeholder="Apps Script に設定した合言葉" value="' + escapeHtml(syncCfg.token) + '"></div>';
-    html += '  <div class="btn-row" style="margin-top:12px;">';
-    html += '    <button class="btn-secondary" id="saveSyncBtn" type="button">保存して接続テスト</button>';
-    html += '    <button class="btn-secondary" id="syncNowBtn" type="button">今すぐ同期</button>';
-    html += '  </div>';
+    if (isParent()) {
+      html += '  <div class="field"><label for="syncUrlInput">同期URL (Apps Script ウェブアプリ)</label>';
+      html += '    <input type="text" id="syncUrlInput" placeholder="https://script.google.com/macros/s/..." value="' + escapeHtml(syncCfg.url) + '"></div>';
+      html += '  <div class="field"><label for="syncTokenInput">合言葉</label>';
+      html += '    <input type="text" id="syncTokenInput" placeholder="Apps Script に設定した合言葉" value="' + escapeHtml(syncCfg.token) + '"></div>';
+      html += '  <div class="btn-row" style="margin-top:12px;">';
+      html += '    <button class="btn-secondary" id="saveSyncBtn" type="button">保存して接続テスト</button>';
+      html += '    <button class="btn-secondary" id="syncNowBtn" type="button">今すぐ同期</button>';
+      html += '  </div>';
+    } else {
+      // 子機には合言葉も同期URLも見せない。記録と同期は設定済みの値で動く。
+      html += '  <div class="list-row"><span class="li-name">接続状態</span>';
+      html += '    <span class="li-sub">' + (syncConfigured() ? '設定済み' : '未設定') + '</span></div>';
+      html += '  <div class="btn-row" style="margin-top:12px;">';
+      html += '    <button class="btn-secondary" id="syncNowBtn" type="button">今すぐ同期</button>';
+      html += '  </div>';
+      html += '  <p class="empty-note" style="margin-top:10px;">同期の設定内容は親機でのみ確認・変更できます。</p>';
+    }
     var pend = unsyncedRecords().length;
     html += '  <p class="empty-note" style="margin-top:10px;">' +
       (syncCfg.lastSync ? "最終同期: " + new Date(syncCfg.lastSync).toLocaleString("ja-JP") : "まだ同期していません") +
@@ -1931,7 +1933,7 @@
     if (syncStatus.error && syncStatus.message) {
       html += '  <p class="empty-note" style="color:var(--danger);">エラー: ' + escapeHtml(syncStatus.message) + '</p>';
     }
-    if (syncConfigured()) {
+    if (syncConfigured() && isParent()) {
       html += '  <p class="section-label" style="margin-top:16px;">この設定を他のスマホへ</p>';
       html += '  <span class="share-url" id="setupUrl"></span>';
       html += '  <div class="btn-row" style="margin-top:8px;">';
@@ -1980,9 +1982,14 @@
     document.getElementById("main").innerHTML = html;
     document.getElementById("shareUrl").textContent = location.origin + location.pathname;
 
+    // 保存前に配布しようとしても取り違えないよう、入力欄に出ている値を優先して読む。
     function setupLink() {
+      var urlEl = document.getElementById("syncUrlInput");
+      var tokEl = document.getElementById("syncTokenInput");
+      var url = (urlEl && !urlEl.disabled ? urlEl.value.trim() : "") || syncCfg.url;
+      var tok = (tokEl && !tokEl.disabled ? tokEl.value.trim() : "") || syncCfg.token;
       var base = location.origin + location.pathname;
-      return base + "?sync=" + encodeURIComponent(syncCfg.url) + (syncCfg.token ? "&key=" + encodeURIComponent(syncCfg.token) : "");
+      return base + "?sync=" + encodeURIComponent(url) + (tok ? "&key=" + encodeURIComponent(tok) : "");
     }
     var setupUrlEl = document.getElementById("setupUrl");
     if (setupUrlEl) setupUrlEl.textContent = setupLink();
@@ -1990,7 +1997,7 @@
     if (showQrBtn) showQrBtn.onclick = function () { openQrSheet(setupLink()); };
 
     var posterBtn = document.getElementById("posterBtn");
-    if (posterBtn) posterBtn.onclick = function () { openPoster(setupLink(), state.ui.factory); };
+    if (posterBtn) posterBtn.onclick = function () { openPoster(setupLink()); };
 
     var copySetupBtn = document.getElementById("copySetupBtn");
     if (copySetupBtn) copySetupBtn.onclick = function () {
@@ -1999,7 +2006,8 @@
       }).catch(function () { toast("コピーできませんでした"); });
     };
 
-    document.getElementById("saveSyncBtn").onclick = function () {
+    var saveSyncBtn = document.getElementById("saveSyncBtn");
+    if (saveSyncBtn) saveSyncBtn.onclick = function () {
       syncCfg.url = document.getElementById("syncUrlInput").value.trim();
       syncCfg.token = document.getElementById("syncTokenInput").value.trim();
       saveSyncCfg();
@@ -2141,7 +2149,7 @@
     document.getElementById("qrCloseBtn").focus();
   }
   // 掲示用ポスター。QRは端末の同期設定から作るので、貼り紙と設定が必ず一致する。
-  function openPoster(link, factory) {
+  function openPoster(link) {
     var svg = QR.toSvg(link);
     if (!svg) { toast("リンクが長すぎてQRコードを作れませんでした"); return; }
     var el = document.getElementById("posterSheet");
@@ -2165,7 +2173,7 @@
       '  <h3>記録のしかた</h3>' +
       '  <ol>' +
       '    <li>QRコードを読み取ってアプリを開く</li>' +
-      '    <li>いちばん上で工場が「' + escapeHtml(factory) + '」になっているか確認する</li>' +
+      '    <li><b>工場を選択してください</b></li>' +
       '    <li>作業した<b>機械のボタン</b>を選ぶ</li>' +
       '    <li><b>追加量 (L)</b>・<b>回収量 (L)</b>・<b>回転数</b> を入力する</li>' +
       '    <li><b>記録する</b> をタップ</li>' +
@@ -2176,7 +2184,6 @@
       '    その表示をタップすると手動で送ることもできます。</div>' +
       '  <div class="p-warn">この紙のQRコードには接続用の合言葉が入っています。' +
       '    社外の人の目に触れる場所には貼らないでください。</div>' +
-      '  <p class="p-foot">ゾール回収量記録アプリ ／ ' + escapeHtml(factory) + '</p>' +
       '</div>';
     el.classList.add("show");
     document.getElementById("posterCloseBtn").onclick = closePoster;

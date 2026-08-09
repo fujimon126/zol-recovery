@@ -1513,7 +1513,8 @@
       toPush.forEach(function (r) { r.synced = true; });
       // 親機は毎回この端末の構成を送る。子機はこれを受け取る。
       // ここが失敗しても記録の同期は続ける(古いスクリプトのままでも記録は流れる)。
-      if (!isParent()) return;
+      // 端末を作り直した直後は、こちらの初期値でシートを上書きしてはいけない。
+      if (!isParent() || opts.adoptConfig) return;
       return callSheet({ action: "config", token: syncCfg.token, config: configPayload() })
         .catch(function (err) {
           configWarning = err && err.code === "unknownaction"
@@ -1566,7 +1567,8 @@
         added++;
       });
       // 構成は親機が正。子機は受け取った内容で置き換える。
-      var cfgChanged = isParent() ? false : applyRemoteConfig(data.config);
+      // 端末を作り直したときだけは、親機でもシートの内容を取り込む。
+      var cfgChanged = (isParent() && !opts.adoptConfig) ? false : applyRemoteConfig(data.config);
       syncCfg.lastSync = new Date().toISOString();
       saveSyncCfg();
       saveState();
@@ -2192,9 +2194,13 @@
     html += '  </div>';
     html += '  <input type="file" id="jsonFile" accept=".json,application/json" class="hidden">';
     if (isParent()) {
-      html += '  <div class="btn-row" style="margin-top:10px;"><button class="btn-danger-text" id="clearAllBtn" type="button">全データを削除</button></div>';
+      html += '  <div class="btn-row" style="margin-top:10px;"><button class="btn-danger-text" id="clearAllBtn" type="button">この端末のデータを消す</button></div>';
+      html += '  <p class="empty-note" style="margin-top:6px;">' +
+        (syncConfigured()
+          ? 'スプレッドシートの記録は消えません。この端末の中身を消して、シートから取り込み直します。'
+          : 'この端末に保存されているデータをすべて消します。') + '</p>';
     } else {
-      html += '  <p class="empty-note" style="margin-top:10px;">全データの削除と復元は親機のみ行えます。</p>';
+      html += '  <p class="empty-note" style="margin-top:10px;">データの消去と復元は親機のみ行えます。</p>';
     }
     html += '</div>';
 
@@ -2352,29 +2358,22 @@
       if (!isParent()) return;
       var linked = syncConfigured();
       if (!confirm(linked
-        ? "すべての記録を削除します。\n\nスプレッドシートの記録も削除され、\n他のスマホからも消えます。\n\nこの操作は取り消せません。よろしいですか?"
+        ? "この端末のデータを消して、スプレッドシートから取り込み直します。\n\nスプレッドシートの記録は消えません。\n\nよろしいですか?"
         : "この端末のすべてのデータを削除します。\nこの操作は取り消せません。よろしいですか?")) return;
       var entered = prompt("確認のため合言葉を入力してください。");
       if (entered === null) return;
-      if (!syncCfg.token || entered.trim() !== syncCfg.token) { toast("合言葉が違います。削除を中止しました"); return; }
+      if (!syncCfg.token || entered.trim() !== syncCfg.token) { toast("合言葉が違います。中止しました"); return; }
 
-      // 端末だけ消してもシートから戻ってくるので、シート側も空にする。
-      var wipeRemote = linked
-        ? callSheet({ action: "clearAll", token: syncCfg.token })
-        : Promise.resolve(null);
-
-      wipeRemote.then(function () {
-        state = defaultState();
-        saveState();
-        renderFactorySelect();
+      state = defaultState();
+      saveState();
+      renderFactorySelect();
+      renderMain();
+      if (!linked) { toast("削除しました"); return; }
+      // 消した直後の初期値をシートへ送らないよう、取り込む側として同期する。
+      toast("取り込み直しています…");
+      runSync({ adoptConfig: true, rerender: false }).then(function (ok) {
         renderSettingsTab();
-        toast(linked ? "スプレッドシートも含めて削除しました" : "削除しました");
-        if (linked) runSync({ rerender: false });
-      }).catch(function (err) {
-        // 消せていないのに端末側だけ消すと、同期で戻ってきて混乱する。
-        toast(err && err.code === "unknownaction"
-          ? "Apps Script の更新が必要です。削除を中止しました"
-          : "スプレッドシートを削除できませんでした。中止しました");
+        toast(ok ? "スプレッドシートから取り込み直しました" : "取り込みに失敗しました。バッジから再同期してください");
       });
     };
   }

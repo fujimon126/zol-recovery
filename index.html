@@ -192,6 +192,12 @@
     margin-top: 2px;
   }
   .stat .value .unit { font-size: 13px; font-weight: 600; color: var(--text-muted); margin-left: 2px; }
+  .stat.accent {
+    background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+    border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+  }
+  .stat.accent .value { color: var(--accent-strong); }
+  .stat.accent .value .unit { color: var(--accent-strong); opacity: 0.75; }
 
   /* machine grid */
   .machine-grid {
@@ -332,16 +338,56 @@
     font-size: 13.5px;
     padding: 9px 10px;
   }
-  .summary-strip {
-    display: flex;
-    justify-content: space-between;
+  .summary-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
     margin-top: 12px;
     padding-top: 12px;
     border-top: 1px dashed var(--border);
   }
-  .summary-strip div { text-align: center; flex: 1; }
-  .summary-strip .n { font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; }
-  .summary-strip .l { font-size: 11px; color: var(--text-muted); font-weight: 600; margin-top: 1px; }
+  .summary-grid > div {
+    text-align: center;
+    padding: 8px 4px;
+    border-radius: 8px;
+  }
+  .summary-grid .n { font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .summary-grid .l { font-size: 11px; color: var(--text-muted); font-weight: 600; margin-top: 1px; }
+  .summary-grid .hl {
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+  }
+  .summary-grid .hl .n { color: var(--accent-strong); }
+  .summary-grid .hl .l { color: var(--accent-strong); opacity: 0.8; }
+
+  .table-scroll { overflow-x: auto; margin: 0 -4px; }
+  table.agg-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12.5px;
+  }
+  table.agg-table th, table.agg-table td {
+    padding: 8px 6px;
+    text-align: right;
+    white-space: nowrap;
+    border-bottom: 1px solid var(--border);
+  }
+  table.agg-table thead th {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 700;
+    border-bottom: 1.5px solid var(--border);
+  }
+  table.agg-table tbody th[scope="row"] {
+    text-align: left;
+    font-weight: 700;
+    padding-left: 4px;
+  }
+  table.agg-table thead th:first-child { text-align: left; padding-left: 4px; }
+  table.agg-table td { font-variant-numeric: tabular-nums; }
+  table.agg-table td.rate { font-weight: 700; color: var(--accent-strong); }
+  table.agg-table tbody tr:last-child th, table.agg-table tbody tr:last-child td { border-bottom: none; }
+  .tm-name { display: block; font-size: 12.5px; }
+  .tm-sub { display: block; font-size: 10.5px; color: var(--text-muted); font-weight: 600; margin-top: 1px; }
 
   .log-group { margin-top: 14px; }
   .log-date {
@@ -615,6 +661,20 @@
     var v = Math.round(n * 10) / 10;
     return v.toLocaleString("ja-JP", { minimumFractionDigits: 0, maximumFractionDigits: 1 });
   }
+  // 回収率 = 回収量 ÷ 追加量。追加量が無い記録では率が定義できない。
+  function rate(recovered, added) {
+    if (!added || added <= 0) return null;
+    return (recovered / added) * 100;
+  }
+  function rateText(recovered, added) {
+    var v = rate(recovered, added);
+    if (v === null) return '—';
+    return fmtNum(v) + '<span class="unit">%</span>';
+  }
+  function ratePlain(recovered, added) {
+    var v = rate(recovered, added);
+    return v === null ? "—" : fmtNum(v) + " %";
+  }
   function escapeHtml(s) {
     return String(s).replace(/[&<>"']/g, function (c) {
       return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
@@ -722,6 +782,7 @@
           machineId: machine.id,
           machineName: r.machineName,
           machineNumber: String(r.machineNumber),
+          addedL: Number(r.addedL) || 0,
           literL: Number(r.literL) || 0,
           count: parseInt(r.count, 10) || 0,
           recorder: r.recorder || "",
@@ -776,8 +837,11 @@
 
     var html = "";
     html += '<div class="stats-row">';
+    html += '  <div class="stat"><div class="label">今回の追加量</div><div class="value">' + (lastRec ? fmtNum(lastRec.addedL) : "—") + '<span class="unit">L</span></div></div>';
     html += '  <div class="stat"><div class="label">今回の回収量</div><div class="value">' + (lastRec ? fmtNum(lastRec.literL) : "—") + '<span class="unit">L</span></div></div>';
     html += '  <div class="stat"><div class="label">今回の回転数</div><div class="value">' + (lastRec ? lastRec.count : "—") + '<span class="unit">回</span></div></div>';
+    html += '  <div class="stat accent"><div class="label">今回の回収率</div><div class="value">' +
+      (lastRec ? rateText(lastRec.literL, lastRec.addedL) : "—") + '</div></div>';
     html += '</div>';
 
     html += '<div class="card">';
@@ -795,6 +859,11 @@
     html += '</div>';
 
     html += '<div class="card">';
+    html += '  <div class="field"><label for="addedInput">追加量 (L)</label>';
+    html += '    <div class="num-input-wrap"><button type="button" class="stepper" data-added="-0.5">−</button>';
+    html += '      <input type="number" id="addedInput" inputmode="decimal" step="0.1" min="0" placeholder="0.0">';
+    html += '      <button type="button" class="stepper" data-added="0.5">＋</button></div></div>';
+
     html += '  <div class="field"><label for="literInput">回収量 (L)</label>';
     html += '    <div class="num-input-wrap"><button type="button" class="stepper" data-step="-0.5">−</button>';
     html += '      <input type="number" id="literInput" inputmode="decimal" step="0.1" min="0" placeholder="0.0">';
@@ -825,14 +894,19 @@
     });
 
     var literInput = document.getElementById("literInput");
-    document.querySelectorAll(".stepper[data-step]").forEach(function (btn) {
-      btn.onclick = function () {
-        var step = parseFloat(btn.getAttribute("data-step"));
-        var cur = parseFloat(literInput.value) || 0;
-        var next = Math.max(0, Math.round((cur + step) * 10) / 10);
-        literInput.value = next === 0 ? "" : next;
-      };
-    });
+    var addedInput = document.getElementById("addedInput");
+    function bindStepper(attr, input) {
+      document.querySelectorAll(".stepper[" + attr + "]").forEach(function (btn) {
+        btn.onclick = function () {
+          var step = parseFloat(btn.getAttribute(attr));
+          var cur = parseFloat(input.value) || 0;
+          var next = Math.max(0, Math.round((cur + step) * 10) / 10);
+          input.value = next === 0 ? "" : next;
+        };
+      });
+    }
+    bindStepper("data-step", literInput);
+    bindStepper("data-added", addedInput);
     var countInput = document.getElementById("countInput");
     document.querySelectorAll(".stepper[data-count]").forEach(function (btn) {
       btn.onclick = function () {
@@ -846,10 +920,13 @@
       var m = findMachine(state.ui.machineId);
       if (!m) { toast("機械を選択してください"); return; }
       var literVal = parseFloat(literInput.value);
+      var addedVal = parseFloat(addedInput.value);
       var countVal = parseInt(countInput.value, 10);
       var tsVal = document.getElementById("tsInput").value;
       var recorder = document.getElementById("recorderInput").value.trim();
-      if (isNaN(literVal) && isNaN(countVal)) { toast("回収量か回転数を入力してください"); return; }
+      if (isNaN(literVal) && isNaN(addedVal) && isNaN(countVal)) {
+        toast("追加量・回収量・回転数のどれかを入力してください"); return;
+      }
       if (!tsVal) { toast("日時を入力してください"); return; }
 
       state.records.push({
@@ -859,6 +936,7 @@
         machineId: m.id,
         machineName: m.name,
         machineNumber: m.number,
+        addedL: isNaN(addedVal) ? 0 : addedVal,
         literL: isNaN(literVal) ? 0 : literVal,
         count: isNaN(countVal) ? 0 : countVal,
         recorder: recorder,
@@ -886,6 +964,7 @@
     });
 
     var totalL = filtered.reduce(function (a, r) { return a + r.literL; }, 0);
+    var totalA = filtered.reduce(function (a, r) { return a + (r.addedL || 0); }, 0);
     var totalC = filtered.reduce(function (a, r) { return a + r.count; }, 0);
 
     var html = '<div class="card">';
@@ -896,12 +975,46 @@
       '</select>';
     html += '    <input type="month" id="filterMonth" value="' + historyFilter.month + '">';
     html += '  </div>';
-    html += '  <div class="summary-strip">';
+    html += '  <div class="summary-grid">';
+    html += '    <div><div class="n">' + fmtNum(totalA) + ' L</div><div class="l">合計追加量</div></div>';
     html += '    <div><div class="n">' + fmtNum(totalL) + ' L</div><div class="l">合計回収量</div></div>';
     html += '    <div><div class="n">' + totalC + ' 回</div><div class="l">合計回転数</div></div>';
-    html += '    <div><div class="n">' + filtered.length + ' 件</div><div class="l">記録件数</div></div>';
+    html += '    <div class="hl"><div class="n">' + ratePlain(totalL, totalA) + '</div><div class="l">回収率</div></div>';
     html += '  </div>';
+    html += '  <p class="empty-note" style="margin-top:8px;">記録件数 ' + filtered.length + ' 件 ・ 回収率 = 回収量 ÷ 追加量</p>';
     html += '</div>';
+
+    // 機械別に見ると、どの機械の回収率が落ちているかが分かる。
+    if (filtered.length) {
+      var byMachine = {};
+      var mOrder = [];
+      filtered.forEach(function (r) {
+        var k = r.factory + "|" + r.machineName + "|" + r.machineNumber;
+        if (!byMachine[k]) {
+          byMachine[k] = { name: r.machineName, number: r.machineNumber, factory: r.factory, added: 0, rec: 0, cnt: 0, n: 0 };
+          mOrder.push(k);
+        }
+        var g = byMachine[k];
+        g.added += r.addedL || 0;
+        g.rec += r.literL;
+        g.cnt += r.count;
+        g.n++;
+      });
+      mOrder.sort(function (a, b) { return byMachine[b].rec - byMachine[a].rec; });
+
+      html += '<div class="card" style="margin-top:12px;">';
+      html += '  <p class="section-label">機械別の集計</p>';
+      html += '  <div class="table-scroll"><table class="agg-table">';
+      html += '    <thead><tr><th>機械</th><th>追加量</th><th>回収量</th><th>回転数</th><th>回収率</th></tr></thead><tbody>';
+      mOrder.forEach(function (k) {
+        var g = byMachine[k];
+        html += '<tr><th scope="row"><span class="tm-name">' + escapeHtml(g.name) + '</span><span class="tm-sub">No.' + escapeHtml(g.number) + ' ・ ' + escapeHtml(g.factory) + '</span></th>';
+        html += '<td>' + fmtNum(g.added) + '</td><td>' + fmtNum(g.rec) + '</td><td>' + g.cnt + '</td>';
+        html += '<td class="rate">' + ratePlain(g.rec, g.added) + '</td></tr>';
+      });
+      html += '    </tbody></table></div>';
+      html += '</div>';
+    }
 
     if (!filtered.length) {
       html += '<p class="empty-note" style="margin-top:14px;">条件に一致する記録がありません。</p>';
@@ -920,7 +1033,8 @@
           html += '  <div class="time">' + fmtTime(r.ts) + '</div>';
           html += '  <div class="meta"><div class="m-name">' + escapeHtml(r.machineName) + ' No.' + escapeHtml(r.machineNumber) + '</div>';
           html += '    <div class="m-sub">' + escapeHtml(r.factory) + (r.recorder ? " ・ " + escapeHtml(r.recorder) : "") + '</div></div>';
-          html += '  <div class="amount"><div class="l">' + fmtNum(r.literL) + ' L</div><div class="c">' + r.count + ' 回</div></div>';
+          html += '  <div class="amount"><div class="l">+' + fmtNum(r.addedL || 0) + ' / ' + fmtNum(r.literL) + ' L</div>';
+          html += '    <div class="c">' + r.count + ' 回 ・ ' + ratePlain(r.literL, r.addedL || 0) + '</div></div>';
           html += '  <button class="del" data-id="' + r.id + '" title="削除">✕</button>';
           html += '</div>';
         });
@@ -978,10 +1092,16 @@
   }
 
   function exportCsv(records) {
-    var header = ["日時", "工場", "機械名", "機械番号", "回収量L", "回転数", "記録者"];
+    var header = ["日時", "工場", "機械名", "機械番号", "追加量L", "回収量L", "回転数", "回収率%", "記録者"];
     var lines = [header.join(",")];
     records.slice().sort(function (a, b) { return a.ts.localeCompare(b.ts); }).forEach(function (r) {
-      lines.push([r.ts, r.factory, r.machineName, r.machineNumber, r.literL, r.count, r.recorder || ""].map(csvField).join(","));
+      var pct = rate(r.literL, r.addedL || 0);
+      lines.push([
+        r.ts, r.factory, r.machineName, r.machineNumber,
+        r.addedL || 0, r.literL, r.count,
+        pct === null ? "" : Math.round(pct * 10) / 10,
+        r.recorder || ""
+      ].map(csvField).join(","));
     });
     var csv = "﻿" + lines.join("\r\n");
     var fname = "zol_" + todayKey() + ".csv";
@@ -1032,11 +1152,12 @@
     var rows = lines.slice(1).map(parseCsvLine);
     var added = 0;
     rows.forEach(function (cols) {
-      if (cols.length < 6) return;
+      if (cols.length < 7) return;
       var ts = cols[0], factory = cols[1], mName = cols[2], mNum = cols[3];
-      var literL = parseFloat(cols[4]) || 0;
-      var count = parseInt(cols[5], 10) || 0;
-      var recorder = cols[6] || "";
+      var addedL = parseFloat(cols[4]) || 0;
+      var literL = parseFloat(cols[5]) || 0;
+      var count = parseInt(cols[6], 10) || 0;
+      var recorder = cols[8] || "";
       var tsIso;
       var d = new Date(ts);
       tsIso = isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString();
@@ -1048,12 +1169,14 @@
         state.machines.push(machine);
       }
       var dup = state.records.some(function (r) {
-        return r.ts === tsIso && r.factory === factory && r.machineId === machine.id && r.literL === literL && r.count === count;
+        return r.ts === tsIso && r.factory === factory && r.machineId === machine.id &&
+          r.literL === literL && (r.addedL || 0) === addedL && r.count === count;
       });
       if (dup) return;
       state.records.push({
         id: uid(), ts: tsIso, factory: factory, machineId: machine.id,
-        machineName: mName, machineNumber: mNum, literL: literL, count: count,
+        machineName: mName, machineNumber: mNum,
+        addedL: addedL, literL: literL, count: count,
         recorder: recorder, synced: false
       });
       added++;

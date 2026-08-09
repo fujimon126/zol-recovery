@@ -454,6 +454,50 @@
   table.agg-table tbody tr:last-child th, table.agg-table tbody tr:last-child td { border-bottom: none; }
   .tm-name { display: block; font-size: 12.5px; }
   .tm-sub { display: block; font-size: 10.5px; color: var(--text-muted); font-weight: 600; margin-top: 1px; }
+  .tm-bar {
+    display: block;
+    height: 5px;
+    border-radius: 3px;
+    background: var(--surface-3);
+    margin-top: 5px;
+    overflow: hidden;
+    min-width: 90px;
+  }
+  .tm-bar > span {
+    display: block;
+    height: 100%;
+    background: var(--accent);
+    border-radius: 3px;
+  }
+
+  svg.trend {
+    display: block;
+    width: 100%;
+    height: auto;
+    margin: 2px 0 4px;
+    overflow: visible;
+  }
+  svg.trend .gl { stroke: var(--border); stroke-width: 1; }
+  svg.trend .ln {
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 2.5;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+  }
+  svg.trend .pt { fill: var(--accent); stroke: var(--surface); stroke-width: 1.5; }
+  svg.trend .ax {
+    fill: var(--text-muted);
+    font-size: 9px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  svg.trend .vl {
+    fill: var(--accent-strong);
+    font-size: 9.5px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
 
   .log-group { margin-top: 14px; }
   .log-date {
@@ -746,6 +790,75 @@
     var v = rate(recovered, added);
     return v === null ? "—" : fmtNum(v) + " %";
   }
+  // 月別の回収率を折れ線で描く。ライブラリを使わず素のSVGで組み立てる。
+  function trendChartSvg(records) {
+    var byM = {}, keys = [];
+    records.forEach(function (r) {
+      var k = monthKey(r.ts);
+      if (!byM[k]) { byM[k] = { added: 0, rec: 0 }; keys.push(k); }
+      byM[k].added += r.addedL || 0;
+      byM[k].rec += r.literL;
+    });
+    keys.sort();
+    if (!keys.length) return "";
+
+    var pts = keys.map(function (k) {
+      return { label: k.slice(2).replace("-", "/"), v: rate(byM[k].rec, byM[k].added) };
+    });
+    var vals = pts.filter(function (p) { return p.v !== null; }).map(function (p) { return p.v; });
+    if (!vals.length) {
+      return '<p class="empty-note">追加量が記録されていないため、回収率のグラフを描けません。</p>';
+    }
+
+    var W = 320, H = 172, padL = 36, padR = 8, padT = 12, padB = 26;
+    var innerW = W - padL - padR, innerH = H - padT - padB;
+    var maxV = Math.max.apply(null, vals);
+    var yMax = Math.max(10, Math.ceil(maxV * 1.15 / 10) * 10);
+    var xAt = function (i) { return pts.length === 1 ? padL + innerW / 2 : padL + (innerW * i) / (pts.length - 1); };
+    var yAt = function (v) { return padT + innerH - (innerH * v) / yMax; };
+
+    var svg = '<svg class="trend" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="月別の回収率の推移">';
+
+    // 目盛り線と目盛りの数字
+    for (var g = 0; g <= 4; g++) {
+      var gv = (yMax / 4) * g, gy = yAt(gv);
+      svg += '<line class="gl" x1="' + padL + '" y1="' + gy + '" x2="' + (W - padR) + '" y2="' + gy + '"/>';
+      svg += '<text class="ax" x="' + (padL - 5) + '" y="' + (gy + 3.5) + '" text-anchor="end">' + Math.round(gv) + '</text>';
+    }
+
+    // 折れ線(追加量ゼロの月は線を切る)
+    var seg = [], segs = [];
+    pts.forEach(function (p, i) {
+      if (p.v === null) { if (seg.length) segs.push(seg); seg = []; return; }
+      seg.push(xAt(i) + "," + yAt(p.v));
+    });
+    if (seg.length) segs.push(seg);
+    segs.forEach(function (s) {
+      if (s.length === 1) return;
+      svg += '<polyline class="ln" points="' + s.join(" ") + '"/>';
+    });
+
+    // 点と値
+    pts.forEach(function (p, i) {
+      if (p.v === null) return;
+      var x = xAt(i), y = yAt(p.v);
+      svg += '<circle class="pt" cx="' + x + '" cy="' + y + '" r="3.5"/>';
+      if (pts.length <= 8) {
+        svg += '<text class="vl" x="' + x + '" y="' + (y - 8) + '" text-anchor="middle">' + fmtNum(p.v) + '</text>';
+      }
+    });
+
+    // 月ラベル(多いときは間引く)
+    var every = Math.ceil(pts.length / 6);
+    pts.forEach(function (p, i) {
+      if (i % every !== 0 && i !== pts.length - 1) return;
+      svg += '<text class="ax" x="' + xAt(i) + '" y="' + (H - 8) + '" text-anchor="middle">' + p.label + '</text>';
+    });
+
+    svg += '</svg>';
+    return svg;
+  }
+
   function escapeHtml(s) {
     return String(s).replace(/[&<>"']/g, function (c) {
       return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
@@ -1090,6 +1203,18 @@
     html += '  <p class="empty-note" style="margin-top:8px;">記録件数 ' + filtered.length + ' 件 ・ 回収率 = 回収量累計 ÷ 追加量累計</p>';
     html += '</div>';
 
+    // 推移は月フィルタを無視する。1か月だけ切り出すと折れ線にならないため。
+    var trendSource = all.filter(function (r) {
+      return historyFilter.factory === "__all__" || r.factory === historyFilter.factory;
+    });
+    if (trendSource.length) {
+      html += '<div class="card" style="margin-top:12px;">';
+      html += '  <p class="section-label">回収率の推移(月別・全期間)</p>';
+      html += trendChartSvg(trendSource);
+      html += '  <p class="empty-note">縦軸は回収率(%)。各月の 回収量 ÷ 追加量 です。</p>';
+      html += '</div>';
+    }
+
     // 機械別に見ると、どの機械の回収率が落ちているかが分かる。
     if (filtered.length) {
       var byMachine = {};
@@ -1106,6 +1231,8 @@
         g.n++;
       });
       mOrder.sort(function (a, b) { return byMachine[b].rec - byMachine[a].rec; });
+      // 棒の長さは機械どうしの比較用なので、最大値を100%として揃える。
+      var maxRec = Math.max.apply(null, mOrder.map(function (k) { return byMachine[k].rec; }));
 
       html += '<div class="card" style="margin-top:12px;">';
       html += '  <p class="section-label">機械別の集計</p>';
@@ -1113,7 +1240,9 @@
       html += '    <thead><tr><th>機械</th><th>回収量</th><th>回転数</th><th>回収率</th></tr></thead><tbody>';
       mOrder.forEach(function (k) {
         var g = byMachine[k];
-        html += '<tr><th scope="row"><span class="tm-name">' + escapeHtml(g.name) + '</span><span class="tm-sub">No.' + escapeHtml(g.number) + ' ・ ' + escapeHtml(g.factory) + '</span></th>';
+        var pct = maxRec > 0 ? (g.rec / maxRec) * 100 : 0;
+        html += '<tr><th scope="row"><span class="tm-name">' + escapeHtml(g.name) + '</span><span class="tm-sub">No.' + escapeHtml(g.number) + ' ・ ' + escapeHtml(g.factory) + '</span>';
+        html += '<span class="tm-bar"><span style="width:' + pct.toFixed(1) + '%"></span></span></th>';
         html += '<td>' + fmtNum(g.rec) + '</td><td>' + g.cnt + '</td>';
         html += '<td class="rate">' + ratePlain(g.rec, totalA) + '</td></tr>';
       });

@@ -673,16 +673,21 @@
   if (!syncCfg.device) { syncCfg.device = "端末-" + Math.random().toString(36).slice(2, 7); saveSyncCfg(); }
 
   // The setup URL may carry the endpoint so a QR code can configure a phone in one scan.
+  // A phone set up this way is a 子機 — it records, but cannot wipe everything.
   (function adoptUrlParams() {
     var p = new URLSearchParams(location.search);
     var u = p.get("sync");
     if (u && u !== syncCfg.url) {
       syncCfg.url = u;
       syncCfg.token = p.get("key") || syncCfg.token;
+      syncCfg.role = "child";
       saveSyncCfg();
       history.replaceState(null, "", location.pathname);
     }
   })();
+  // 設定リンクを使わず自分で設定した端末は親機とみなす(初回設定者=管理者)。
+  if (!syncCfg.role) syncCfg.role = "parent";
+  function isParent() { return syncCfg.role !== "child"; }
 
   var syncStatus = { busy: false, message: "", error: false };
 
@@ -1354,10 +1359,27 @@
     html += '  <p class="section-label">データのバックアップ</p>';
     html += '  <div class="btn-row">';
     html += '    <button class="btn-secondary" id="exportJsonBtn" type="button">全データをバックアップ</button>';
-    html += '    <button class="btn-secondary" id="importJsonBtn" type="button">バックアップを復元</button>';
+    if (isParent()) {
+      html += '    <button class="btn-secondary" id="importJsonBtn" type="button">バックアップを復元</button>';
+    }
     html += '  </div>';
     html += '  <input type="file" id="jsonFile" accept=".json,application/json" class="hidden">';
-    html += '  <div class="btn-row" style="margin-top:10px;"><button class="btn-danger-text" id="clearAllBtn" type="button">全データを削除</button></div>';
+    if (isParent()) {
+      html += '  <div class="btn-row" style="margin-top:10px;"><button class="btn-danger-text" id="clearAllBtn" type="button">全データを削除</button></div>';
+    } else {
+      html += '  <p class="empty-note" style="margin-top:10px;">全データの削除と復元は親機のみ行えます。</p>';
+    }
+    html += '</div>';
+
+    html += '<div class="card">';
+    html += '  <p class="section-label">この端末</p>';
+    html += '  <div class="list-row"><span><span class="li-name">' + (isParent() ? '親機(管理者)' : '子機') + '</span>';
+    html += '    <span class="li-sub">' + escapeHtml(syncCfg.device) + '</span></span>';
+    html += '    <button class="btn-secondary" id="roleBtn" type="button">' + (isParent() ? '子機にする' : '親機にする') + '</button></div>';
+    html += '  <p class="empty-note" style="margin-top:8px;">' +
+      (isParent()
+        ? '親機は全データの削除と復元ができます。現場で使うスマホは子機にしてください。'
+        : '子機は記録と同期ができます。親機にするには合言葉の入力が必要です。') + '</p>';
     html += '</div>';
 
     document.getElementById("main").innerHTML = html;
@@ -1436,10 +1458,27 @@
       }).catch(function () { toast("コピーできませんでした"); });
     };
 
+    document.getElementById("roleBtn").onclick = function () {
+      if (isParent()) {
+        if (!confirm("この端末を子機にしますか?\n全データの削除と復元ができなくなります。")) return;
+        syncCfg.role = "child";
+      } else {
+        var entered = prompt("親機にするには合言葉を入力してください。");
+        if (entered === null) return;
+        if (!syncCfg.token) { toast("先に同期設定を済ませてください"); return; }
+        if (entered.trim() !== syncCfg.token) { toast("合言葉が違います"); return; }
+        syncCfg.role = "parent";
+      }
+      saveSyncCfg();
+      renderSettingsTab();
+      toast(isParent() ? "親機にしました" : "子機にしました");
+    };
+
     document.getElementById("exportJsonBtn").onclick = function () {
       saveFile("zol_backup_" + todayKey() + ".json", JSON.stringify(state, null, 2), "json");
     };
-    document.getElementById("importJsonBtn").onclick = function () { document.getElementById("jsonFile").click(); };
+    var importJsonBtn = document.getElementById("importJsonBtn");
+    if (importJsonBtn) importJsonBtn.onclick = function () { document.getElementById("jsonFile").click(); };
     document.getElementById("jsonFile").onchange = function (e) {
       var file = e.target.files[0];
       if (!file) return;
@@ -1462,12 +1501,18 @@
       reader.readAsText(file, "utf-8");
       e.target.value = "";
     };
-    document.getElementById("clearAllBtn").onclick = function () {
-      if (!confirm("すべてのデータを削除します。よろしいですか?")) return;
+    var clearAllBtn = document.getElementById("clearAllBtn");
+    if (clearAllBtn) clearAllBtn.onclick = function () {
+      if (!isParent()) return;
+      if (!confirm("この端末のすべてのデータを削除します。\n(スプレッドシートの記録は消えません)\nよろしいですか?")) return;
+      var entered = prompt("確認のため合言葉を入力してください。");
+      if (entered === null) return;
+      if (!syncCfg.token || entered.trim() !== syncCfg.token) { toast("合言葉が違います。削除を中止しました"); return; }
       state = defaultState();
       saveState();
       renderFactorySelect();
       renderSettingsTab();
+      toast("削除しました");
     };
   }
 

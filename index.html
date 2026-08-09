@@ -686,7 +686,7 @@
     }
   })();
   // 設定リンクを使わず自分で設定した端末は親機とみなす(初回設定者=管理者)。
-  if (!syncCfg.role) syncCfg.role = "parent";
+  if (!syncCfg.role) { syncCfg.role = "parent"; saveSyncCfg(); }
   function isParent() { return syncCfg.role !== "child"; }
 
   var syncStatus = { busy: false, message: "", error: false };

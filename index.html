@@ -234,6 +234,44 @@
     padding: 6px 2px;
   }
 
+  .machine-cum {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px dashed var(--border);
+  }
+  .mc-title {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-muted);
+    margin: 0 0 8px;
+  }
+  .mc-title .mc-n { margin-left: auto; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .mc-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+  }
+  .mc-grid > div {
+    background: var(--surface-2);
+    border-radius: 8px;
+    padding: 7px 4px;
+    text-align: center;
+  }
+  .mc-grid .k { display: block; font-size: 10.5px; color: var(--text-muted); font-weight: 600; }
+  .mc-grid .v {
+    display: block;
+    font-size: 13.5px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    margin-top: 2px;
+    white-space: nowrap;
+  }
+  .mc-grid .hl { background: color-mix(in srgb, var(--accent) 15%, var(--surface-2)); }
+  .mc-grid .hl .v { color: var(--accent-strong); }
+
   /* form rows */
   .field { margin-top: 14px; }
   .field:first-child { margin-top: 0; }
@@ -668,18 +706,18 @@
     var v = Math.round(n * 10) / 10;
     return v.toLocaleString("ja-JP", { minimumFractionDigits: 0, maximumFractionDigits: 1 });
   }
-  // 回収率 = 追加量 ÷ 回収量。回収量が無いと率が定義できない。
-  function rate(added, recovered) {
-    if (!recovered || recovered <= 0) return null;
-    return (added / recovered) * 100;
+  // 回収率 = 回収量 ÷ 追加量。追加量が無いと率が定義できない。
+  function rate(recovered, added) {
+    if (!added || added <= 0) return null;
+    return (recovered / added) * 100;
   }
-  function rateText(added, recovered) {
-    var v = rate(added, recovered);
+  function rateText(recovered, added) {
+    var v = rate(recovered, added);
     if (v === null) return '—';
     return fmtNum(v) + '<span class="unit">%</span>';
   }
-  function ratePlain(added, recovered) {
-    var v = rate(added, recovered);
+  function ratePlain(recovered, added) {
+    var v = rate(recovered, added);
     return v === null ? "—" : fmtNum(v) + " %";
   }
   function escapeHtml(s) {
@@ -853,9 +891,9 @@
     html += '  <div class="stat"><div class="label">累計 追加量</div><div class="value">' + fmtNum(cumA) + '<span class="unit">L</span></div></div>';
     html += '  <div class="stat"><div class="label">累計 回収量</div><div class="value">' + fmtNum(cumL) + '<span class="unit">L</span></div></div>';
     html += '  <div class="stat"><div class="label">累計 回転数</div><div class="value">' + cumC + '<span class="unit">回</span></div></div>';
-    html += '  <div class="stat accent"><div class="label">回収率</div><div class="value">' + rateText(cumA, cumL) + '</div></div>';
+    html += '  <div class="stat accent"><div class="label">回収率</div><div class="value">' + rateText(cumL, cumA) + '</div></div>';
     html += '</div>';
-    html += '<p class="scope-note">' + escapeHtml(factory) + ' の全期間累計 ・ 回収率 = 追加量累計 ÷ 回収量累計';
+    html += '<p class="scope-note">' + escapeHtml(factory) + ' の全期間累計 ・ 回収率 = 回収量累計 ÷ 追加量累計';
     if (lastRec) {
       html += '<br>直前の記録: ' + escapeHtml(lastRec.machineName) + ' No.' + escapeHtml(lastRec.machineNumber) +
         ' ・ 追加 ' + fmtNum(lastRec.addedL || 0) + 'L / 回収 ' + fmtNum(lastRec.literL) + 'L / ' + lastRec.count + '回';
@@ -873,6 +911,29 @@
       html += '  </div>';
     } else {
       html += '  <p class="empty-note">この工場にはまだ機械が登録されていません。「設定」タブから追加してください。</p>';
+    }
+
+    // 選んでいる機械だけの累計。機械ごとの回収率をその場で確かめられる。
+    var selected = findMachine(state.ui.machineId);
+    if (selected) {
+      var mA = 0, mL = 0, mC = 0, mN = 0;
+      facRecs.forEach(function (r) {
+        if (r.machineName !== selected.name || r.machineNumber !== selected.number) return;
+        mA += r.addedL || 0;
+        mL += r.literL;
+        mC += r.count;
+        mN++;
+      });
+      html += '  <div class="machine-cum">';
+      html += '    <p class="mc-title">' + escapeHtml(selected.name) + ' No.' + escapeHtml(selected.number) + ' の累計';
+      html += '      <span class="mc-n">' + mN + ' 件</span></p>';
+      html += '    <div class="mc-grid">';
+      html += '      <div><span class="k">追加量</span><span class="v">' + fmtNum(mA) + ' L</span></div>';
+      html += '      <div><span class="k">回収量</span><span class="v">' + fmtNum(mL) + ' L</span></div>';
+      html += '      <div><span class="k">回転数</span><span class="v">' + mC + ' 回</span></div>';
+      html += '      <div class="hl"><span class="k">回収率</span><span class="v">' + ratePlain(mL, mA) + '</span></div>';
+      html += '    </div>';
+      html += '  </div>';
     }
     html += '</div>';
 
@@ -997,9 +1058,9 @@
     html += '    <div><div class="n">' + fmtNum(totalA) + ' L</div><div class="l">合計追加量</div></div>';
     html += '    <div><div class="n">' + fmtNum(totalL) + ' L</div><div class="l">合計回収量</div></div>';
     html += '    <div><div class="n">' + totalC + ' 回</div><div class="l">合計回転数</div></div>';
-    html += '    <div class="hl"><div class="n">' + ratePlain(totalA, totalL) + '</div><div class="l">回収率</div></div>';
+    html += '    <div class="hl"><div class="n">' + ratePlain(totalL, totalA) + '</div><div class="l">回収率</div></div>';
     html += '  </div>';
-    html += '  <p class="empty-note" style="margin-top:8px;">記録件数 ' + filtered.length + ' 件 ・ 回収率 = 追加量累計 ÷ 回収量累計</p>';
+    html += '  <p class="empty-note" style="margin-top:8px;">記録件数 ' + filtered.length + ' 件 ・ 回収率 = 回収量累計 ÷ 追加量累計</p>';
     html += '</div>';
 
     // 機械別に見ると、どの機械の回収率が落ちているかが分かる。
@@ -1028,7 +1089,7 @@
         var g = byMachine[k];
         html += '<tr><th scope="row"><span class="tm-name">' + escapeHtml(g.name) + '</span><span class="tm-sub">No.' + escapeHtml(g.number) + ' ・ ' + escapeHtml(g.factory) + '</span></th>';
         html += '<td>' + fmtNum(g.added) + '</td><td>' + fmtNum(g.rec) + '</td><td>' + g.cnt + '</td>';
-        html += '<td class="rate">' + ratePlain(g.added, g.rec) + '</td></tr>';
+        html += '<td class="rate">' + ratePlain(g.rec, g.added) + '</td></tr>';
       });
       html += '    </tbody></table></div>';
       html += '</div>';
@@ -1113,7 +1174,7 @@
     var header = ["日時", "工場", "機械名", "機械番号", "追加量L", "回収量L", "回転数", "回収率%", "記録者"];
     var lines = [header.join(",")];
     records.slice().sort(function (a, b) { return a.ts.localeCompare(b.ts); }).forEach(function (r) {
-      var pct = rate(r.addedL || 0, r.literL);
+      var pct = rate(r.literL, r.addedL || 0);
       lines.push([
         r.ts, r.factory, r.machineName, r.machineNumber,
         r.addedL || 0, r.literL, r.count,

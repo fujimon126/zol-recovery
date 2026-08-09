@@ -616,6 +616,41 @@
   svg.qr { display: block; width: 100%; height: auto; }
   .qr-sub { font-size: 11.5px; color: var(--text-muted); line-height: 1.6; margin: 0 0 14px; }
 
+  .diag { text-align: left; margin-bottom: 14px; }
+  .diag-row {
+    display: flex;
+    gap: 9px;
+    align-items: flex-start;
+    padding: 9px 10px;
+    border-radius: 9px;
+    margin-bottom: 6px;
+  }
+  .diag-row.ok { background: var(--good-bg); }
+  .diag-row.ng { background: var(--danger-bg); }
+  .diag-mark {
+    flex: none;
+    width: 17px; height: 17px;
+    border-radius: 50%;
+    font-size: 11px;
+    font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff;
+  }
+  .diag-row.ok .diag-mark { background: var(--good); }
+  .diag-row.ng .diag-mark { background: var(--danger); }
+  .diag-body { display: block; min-width: 0; }
+  .diag-body b { display: block; font-size: 12.5px; line-height: 1.45; }
+  .diag-row.ok .diag-body b { color: var(--good); }
+  .diag-row.ng .diag-body b { color: var(--danger); }
+  .diag-body span {
+    display: block;
+    font-size: 11px;
+    line-height: 1.55;
+    color: var(--text-muted);
+    margin-top: 2px;
+    word-break: break-all;
+  }
+
   /* ---- 掲示用ポスター ---- */
   .poster-sheet {
     position: fixed;
@@ -1392,16 +1427,37 @@
       });
   }
 
+  // 失敗したときに何を直せばいいかが分かるよう、原因ごとに文言を変える。
+  function syncError(message, code) {
+    var e = new Error(message);
+    e.code = code;
+    return e;
+  }
+
   function callSheet(payload) {
     return fetch(syncCfg.url, {
       method: "POST",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
       body: JSON.stringify(payload)
+    }).catch(function () {
+      throw syncError("スプレッドシートに接続できません。同期URLが正しいか、電波が届いているか確認してください。", "network");
     }).then(function (res) {
-      if (!res.ok) throw new Error("HTTP " + res.status);
-      return res.json();
-    }).then(function (data) {
-      if (!data || data.ok !== true) throw new Error((data && data.error) || "サーバーエラー");
+      if (!res.ok) throw syncError("スプレッドシートがエラーを返しました (HTTP " + res.status + ")", "http");
+      return res.text();
+    }).then(function (text) {
+      var data;
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        // ログイン画面のHTMLが返ってくるのは、公開設定が「全員」でないとき。
+        throw syncError("Apps Script の公開設定を確認してください。「アクセスできるユーザー」を『全員』にして再デプロイが必要です。", "notjson");
+      }
+      if (!data || data.ok !== true) {
+        var msg = (data && data.error) || "サーバーエラー";
+        if (/不明な操作/.test(msg)) throw syncError(msg, "unknownaction");
+        if (/合言葉/.test(msg)) throw syncError("合言葉が一致しません。Apps Script の TOKEN とアプリの合言葉を揃えてください。", "token");
+        throw syncError(msg, "server");
+      }
       return data;
     });
   }
@@ -1451,10 +1507,18 @@
       ? callSheet({ action: "push", token: syncCfg.token, device: syncCfg.device, records: toPush })
       : Promise.resolve({ ok: true });
 
+    var configWarning = "";
     return pushPromise.then(function () {
       toPush.forEach(function (r) { r.synced = true; });
       // 親機は毎回この端末の構成を送る。子機はこれを受け取る。
-      if (isParent()) return callSheet({ action: "config", token: syncCfg.token, config: configPayload() });
+      // ここが失敗しても記録の同期は続ける(古いスクリプトのままでも記録は流れる)。
+      if (!isParent()) return;
+      return callSheet({ action: "config", token: syncCfg.token, config: configPayload() })
+        .catch(function (err) {
+          configWarning = err && err.code === "unknownaction"
+            ? "工場と機械の共有には Apps Script の更新が必要です"
+            : "構成を共有できませんでした";
+        });
     }).then(function () {
       return callSheet({ action: "pull", token: syncCfg.token });
     }).then(function (data) {
@@ -1492,10 +1556,11 @@
       syncCfg.lastSync = new Date().toISOString();
       saveSyncCfg();
       saveState();
-      setSyncStatus("", false, false);
+      setSyncStatus(configWarning, false, false);
       renderFactorySelect();
       if (opts.loud) {
-        toast("同期しました" + (toPush.length ? " ・送信" + toPush.length + "件" : "") + (added ? " ・受信" + added + "件" : "") + (cfgChanged ? " ・構成を更新" : ""));
+        toast(configWarning ? configWarning
+          : "同期しました" + (toPush.length ? " ・送信" + toPush.length + "件" : "") + (added ? " ・受信" + added + "件" : "") + (cfgChanged ? " ・構成を更新" : ""));
       }
       if (opts.rerender !== false && (added || toPush.length || cfgChanged)) renderMain();
       return true;
@@ -1504,6 +1569,77 @@
       setSyncStatus(String(err && err.message || err), true, false);
       if (opts.loud) toast("同期できませんでした: " + (err && err.message || err));
       return false;
+    });
+  }
+
+  // どこで詰まっているかを1つずつ確かめて、直し方まで出す。
+  function runDiagnostics() {
+    var steps = [];
+    function add(ok, label, detail) { steps.push({ ok: ok, label: label, detail: detail || "" }); }
+
+    var url = syncCfg.url || "";
+    if (!url) { add(false, "同期URLが未入力です", "設定タブに Apps Script のURLを入れてください"); return Promise.resolve(steps); }
+    add(true, "同期URLあり", url.length > 60 ? url.slice(0, 57) + "…" : url);
+
+    if (!/^https:\/\/script\.google\.com\/macros\/s\/.+\/exec$/.test(url)) {
+      add(false, "URLの形が違います",
+        url.indexOf("/dev") >= 0
+          ? "末尾が /dev になっています。デプロイ後に出る /exec で終わるURLを使ってください"
+          : "https://script.google.com/macros/s/... /exec の形になっているか確認してください");
+    } else {
+      add(true, "URLの形は正しい", "/exec で終わっています");
+    }
+
+    if (!syncCfg.token) add(false, "合言葉が未入力です", "Apps Script の TOKEN と同じ文字列を入れてください");
+    else add(true, "合言葉あり", "*".repeat(syncCfg.token.length));
+
+    return callSheet({ action: "pull", token: syncCfg.token }).then(function (data) {
+      add(true, "スプレッドシートに接続できました", "記録 " + ((data.records || []).length) + " 件を確認");
+      if (data.config && data.config.factories) {
+        add(true, "工場と機械の共有は有効", "工場 " + data.config.factories.length + " ・機械 " + (data.config.machines || []).length);
+      } else {
+        add(false, "共有された構成がまだありません",
+          isParent() ? "この端末で「今すぐ同期」を押すと送信されます" : "親機で一度同期してもらってください");
+      }
+      // 構成の保存に対応したスクリプトかどうかを確かめる
+      if (!isParent()) { add(true, "この端末は子機です", "構成は親機から受け取ります"); return steps; }
+      return callSheet({ action: "config", token: syncCfg.token, config: configPayload() })
+        .then(function () { add(true, "Apps Script は最新です", "構成を保存できました"); return steps; })
+        .catch(function (err) {
+          add(false, "Apps Script が古いままです",
+            err.code === "unknownaction"
+              ? "AppsScript.gs を貼り替えて「デプロイを管理 → 編集 → 新バージョン → デプロイ」を行ってください"
+              : (err.message || String(err)));
+          return steps;
+        });
+    }).catch(function (err) {
+      add(false, "接続できませんでした", err && err.message ? err.message : String(err));
+      return steps;
+    });
+  }
+
+  function openDiagnostics() {
+    var el = document.getElementById("qrSheet");
+    el.innerHTML = '<div class="qr-panel"><p class="qr-head">接続を確認しています…</p></div>';
+    el.classList.add("show");
+    runDiagnostics().then(function (steps) {
+      var html = '<div class="qr-panel" role="dialog" aria-modal="true" aria-label="接続診断">';
+      html += '  <p class="qr-head">接続診断</p>';
+      html += '  <div class="diag">';
+      steps.forEach(function (s) {
+        html += '<div class="diag-row ' + (s.ok ? "ok" : "ng") + '">';
+        html += '  <span class="diag-mark">' + (s.ok ? "✓" : "!") + '</span>';
+        html += '  <span class="diag-body"><b>' + escapeHtml(s.label) + '</b>';
+        html += s.detail ? '<span>' + escapeHtml(s.detail) + '</span>' : '';
+        html += '  </span></div>';
+      });
+      html += '  </div>';
+      html += '  <div class="btn-row" style="justify-content:center;"><button class="btn-secondary" id="diagCloseBtn" type="button">閉じる</button></div>';
+      html += '</div>';
+      el.innerHTML = html;
+      document.getElementById("diagCloseBtn").onclick = closeQrSheet;
+      el.onclick = function (e) { if (e.target === el) closeQrSheet(); };
+      document.addEventListener("keydown", qrEscHandler);
     });
   }
 
@@ -1986,6 +2122,7 @@
       html += '  <div class="btn-row" style="margin-top:12px;">';
       html += '    <button class="btn-secondary" id="saveSyncBtn" type="button">保存して接続テスト</button>';
       html += '    <button class="btn-secondary" id="syncNowBtn" type="button">今すぐ同期</button>';
+      html += '    <button class="btn-secondary" id="diagBtn" type="button">接続診断</button>';
       html += '  </div>';
     } else {
       // 子機には合言葉も同期URLも見せない。記録と同期は設定済みの値で動く。
@@ -1993,6 +2130,7 @@
       html += '    <span class="li-sub">' + (syncConfigured() ? '設定済み' : '未設定') + '</span></div>';
       html += '  <div class="btn-row" style="margin-top:12px;">';
       html += '    <button class="btn-secondary" id="syncNowBtn" type="button">今すぐ同期</button>';
+      html += '    <button class="btn-secondary" id="diagBtn" type="button">接続診断</button>';
       html += '  </div>';
       html += '  <p class="empty-note" style="margin-top:10px;">同期の設定内容は親機でのみ確認・変更できます。</p>';
     }
@@ -2087,6 +2225,7 @@
     document.getElementById("syncNowBtn").onclick = function () {
       runSync({ loud: true, rerender: false }).then(function () { renderSettingsTab(); });
     };
+    document.getElementById("diagBtn").onclick = openDiagnostics;
 
     var addFactoryBtn = document.getElementById("addFactoryBtn");
     if (addFactoryBtn) addFactoryBtn.onclick = function () {

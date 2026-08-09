@@ -660,15 +660,15 @@
     text-wrap: balance;
     color: #17201e;
   }
-  .poster .p-lead { font-size: 14px; line-height: 1.75; color: #4d5a56; margin: 0 0 22px; }
+  .poster .p-lead { font-size: 14px; line-height: 1.7; color: #4d5a56; margin: 0 0 18px; }
   .p-qr-block {
     display: flex;
     align-items: center;
-    gap: 22px;
+    gap: 20px;
     border: 2.5px solid #17201e;
     border-radius: 10px;
-    padding: 20px;
-    margin-bottom: 22px;
+    padding: 18px;
+    margin-bottom: 18px;
   }
   .p-qr-block .p-qr { width: 190px; flex: none; }
   .p-qr-block .p-qr svg { display: block; width: 100%; height: auto; }
@@ -682,14 +682,14 @@
     border-bottom: 2px solid #c9631a;
     color: #17201e;
   }
-  .poster ol { margin: 0 0 22px; padding-left: 22px; }
-  .poster ol li { font-size: 14.5px; line-height: 2; color: #17201e; }
+  .poster ol { margin: 0 0 18px; padding-left: 22px; }
+  .poster ol li { font-size: 14.5px; line-height: 1.85; color: #17201e; }
   .p-note {
     background: #fdf3e9;
     border-left: 4px solid #c9631a;
-    padding: 14px 16px;
+    padding: 13px 16px;
     font-size: 12.5px;
-    line-height: 1.8;
+    line-height: 1.75;
     color: #17201e;
   }
   .p-note b { display: block; margin-bottom: 4px; font-size: 13px; }
@@ -729,6 +729,8 @@
       border-radius: 0;
       max-width: none;
       padding: 0;
+      page-break-inside: avoid;
+      break-inside: avoid;
     }
   }
 

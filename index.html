@@ -1336,6 +1336,62 @@
     return state.records.filter(function (r) { return !r.synced; });
   }
 
+  // 工場と機械の構成。親機が正で、子機はこれを受け取って上書きする。
+  function configPayload() {
+    return {
+      factories: state.factories.slice(),
+      machines: state.machines.map(function (m) {
+        return { factory: m.factory, name: m.name, number: m.number };
+      })
+    };
+  }
+
+  function applyRemoteConfig(cfg) {
+    if (!cfg || !cfg.factories || !cfg.machines || !cfg.factories.length) return false;
+    var before = JSON.stringify(configPayload());
+    var after = JSON.stringify({
+      factories: cfg.factories,
+      machines: cfg.machines.map(function (m) {
+        return { factory: m.factory, name: m.name, number: String(m.number) };
+      })
+    });
+    if (before === after) return false;
+
+    // 同じ機械には同じIDを保ち、選択中の機械が外れないようにする
+    var idByKey = {};
+    state.machines.forEach(function (m) { idByKey[m.factory + "|" + m.name + "|" + m.number] = m.id; });
+
+    state.factories = cfg.factories.slice();
+    state.machines = cfg.machines.map(function (m) {
+      var num = String(m.number);
+      var key = m.factory + "|" + m.name + "|" + num;
+      return { id: idByKey[key] || uid(), factory: m.factory, name: m.name, number: num };
+    });
+
+    // 記録の機械IDを新しい機械に張り直す
+    var newIdByKey = {};
+    state.machines.forEach(function (m) { newIdByKey[m.factory + "|" + m.name + "|" + m.number] = m.id; });
+    state.records.forEach(function (r) {
+      var id = newIdByKey[r.factory + "|" + r.machineName + "|" + r.machineNumber];
+      if (id) r.machineId = id;
+    });
+
+    if (state.factories.indexOf(state.ui.factory) === -1) state.ui.factory = state.factories[0];
+    return true;
+  }
+
+  // 親機が構成を変えたら、その場でスプレッドシートへ送る。
+  function pushConfig(opts) {
+    opts = opts || {};
+    if (!isParent() || !syncConfigured()) return Promise.resolve(false);
+    return callSheet({ action: "config", token: syncCfg.token, config: configPayload() })
+      .then(function () { if (opts.loud) toast("構成を共有しました"); return true; })
+      .catch(function (err) {
+        if (opts.loud) toast("構成を共有できませんでした: " + (err && err.message || err));
+        return false;
+      });
+  }
+
   function callSheet(payload) {
     return fetch(syncCfg.url, {
       method: "POST",
@@ -1397,6 +1453,9 @@
 
     return pushPromise.then(function () {
       toPush.forEach(function (r) { r.synced = true; });
+      // 親機は毎回この端末の構成を送る。子機はこれを受け取る。
+      if (isParent()) return callSheet({ action: "config", token: syncCfg.token, config: configPayload() });
+    }).then(function () {
       return callSheet({ action: "pull", token: syncCfg.token });
     }).then(function (data) {
       var incoming = data.records || [];
@@ -1428,15 +1487,17 @@
         });
         added++;
       });
+      // 構成は親機が正。子機は受け取った内容で置き換える。
+      var cfgChanged = isParent() ? false : applyRemoteConfig(data.config);
       syncCfg.lastSync = new Date().toISOString();
       saveSyncCfg();
       saveState();
       setSyncStatus("", false, false);
       renderFactorySelect();
       if (opts.loud) {
-        toast("同期しました" + (toPush.length ? " ・送信" + toPush.length + "件" : "") + (added ? " ・受信" + added + "件" : ""));
+        toast("同期しました" + (toPush.length ? " ・送信" + toPush.length + "件" : "") + (added ? " ・受信" + added + "件" : "") + (cfgChanged ? " ・構成を更新" : ""));
       }
-      if (opts.rerender !== false && (added || toPush.length)) renderMain();
+      if (opts.rerender !== false && (added || toPush.length || cfgChanged)) renderMain();
       return true;
     }).catch(function (err) {
       saveState();
@@ -2038,6 +2099,7 @@
       saveState();
       renderFactorySelect();
       renderSettingsTab();
+      pushConfig();
     };
     document.querySelectorAll("[data-del-factory]").forEach(function (btn) {
       btn.onclick = function () {
@@ -2050,6 +2112,7 @@
         saveState();
         renderFactorySelect();
         renderSettingsTab();
+        pushConfig();
       };
     });
 
@@ -2061,6 +2124,7 @@
       state.machines.push({ id: uid(), factory: factory, name: name, number: num });
       saveState();
       renderSettingsTab();
+      pushConfig();
     };
     document.querySelectorAll("[data-del-machine]").forEach(function (btn) {
       btn.onclick = function () {
@@ -2069,6 +2133,7 @@
         state.machines = state.machines.filter(function (m) { return m.id !== id; });
         saveState();
         renderSettingsTab();
+        pushConfig();
       };
     });
 

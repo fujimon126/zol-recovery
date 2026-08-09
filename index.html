@@ -1524,6 +1524,19 @@
       return callSheet({ action: "pull", token: syncCfg.token });
     }).then(function (data) {
       var incoming = data.records || [];
+
+      // 他の端末で消された記録をこの端末からも消す。
+      // シートが正なので、送信済みなのにシートに無い＝削除された、と判断する。
+      var onSheet = {};
+      incoming.forEach(function (r) { if (r && r.id) onSheet[r.id] = true; });
+      var removed = 0;
+      state.records = state.records.filter(function (r) {
+        if (!r.synced) return true;          // まだ送っていない分は消さない
+        if (onSheet[r.id]) return true;
+        removed++;
+        return false;
+      });
+
       var known = {};
       state.records.forEach(function (r) { known[r.id] = r; });
       var added = 0;
@@ -1561,9 +1574,9 @@
       renderFactorySelect();
       if (opts.loud) {
         toast(configWarning ? configWarning
-          : "同期しました" + (toPush.length ? " ・送信" + toPush.length + "件" : "") + (added ? " ・受信" + added + "件" : "") + (cfgChanged ? " ・構成を更新" : ""));
+          : "同期しました" + (toPush.length ? " ・送信" + toPush.length + "件" : "") + (added ? " ・受信" + added + "件" : "") + (removed ? " ・削除" + removed + "件" : "") + (cfgChanged ? " ・構成を更新" : ""));
       }
-      if (opts.rerender !== false && (added || toPush.length || cfgChanged)) renderMain();
+      if (opts.rerender !== false && (added || removed || toPush.length || cfgChanged)) renderMain();
       return true;
     }).catch(function (err) {
       saveState();
@@ -2337,15 +2350,32 @@
     var clearAllBtn = document.getElementById("clearAllBtn");
     if (clearAllBtn) clearAllBtn.onclick = function () {
       if (!isParent()) return;
-      if (!confirm("この端末のすべてのデータを削除します。\n(スプレッドシートの記録は消えません)\nよろしいですか?")) return;
+      var linked = syncConfigured();
+      if (!confirm(linked
+        ? "すべての記録を削除します。\n\nスプレッドシートの記録も削除され、\n他のスマホからも消えます。\n\nこの操作は取り消せません。よろしいですか?"
+        : "この端末のすべてのデータを削除します。\nこの操作は取り消せません。よろしいですか?")) return;
       var entered = prompt("確認のため合言葉を入力してください。");
       if (entered === null) return;
       if (!syncCfg.token || entered.trim() !== syncCfg.token) { toast("合言葉が違います。削除を中止しました"); return; }
-      state = defaultState();
-      saveState();
-      renderFactorySelect();
-      renderSettingsTab();
-      toast("削除しました");
+
+      // 端末だけ消してもシートから戻ってくるので、シート側も空にする。
+      var wipeRemote = linked
+        ? callSheet({ action: "clearAll", token: syncCfg.token })
+        : Promise.resolve(null);
+
+      wipeRemote.then(function () {
+        state = defaultState();
+        saveState();
+        renderFactorySelect();
+        renderSettingsTab();
+        toast(linked ? "スプレッドシートも含めて削除しました" : "削除しました");
+        if (linked) runSync({ rerender: false });
+      }).catch(function (err) {
+        // 消せていないのに端末側だけ消すと、同期で戻ってきて混乱する。
+        toast(err && err.code === "unknownaction"
+          ? "Apps Script の更新が必要です。削除を中止しました"
+          : "スプレッドシートを削除できませんでした。中止しました");
+      });
     };
   }
 

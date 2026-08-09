@@ -1881,29 +1881,38 @@
     var factory = state.ui.factory;
     var html = "";
 
+    // 工場と機械の構成は現場で勝手に変わると集計が崩れるため、親機だけが編集できる。
+    var canEdit = isParent();
+
     html += '<div class="card">';
-    html += '  <p class="section-label">工場を管理</p>';
+    html += '  <p class="section-label">' + (canEdit ? '工場を管理' : '工場') + '</p>';
     state.factories.forEach(function (f) {
       html += '<div class="list-row"><span class="li-name">' + escapeHtml(f) + '</span>';
-      html += (state.factories.length > 1 ? '<button class="btn-danger-text" data-del-factory="' + escapeHtml(f) + '">削除</button>' : '') + '</div>';
+      html += (canEdit && state.factories.length > 1 ? '<button class="btn-danger-text" data-del-factory="' + escapeHtml(f) + '">削除</button>' : '') + '</div>';
     });
-    html += '  <div class="add-inline"><input type="text" id="newFactory" placeholder="新しい工場名"><button class="btn-secondary" id="addFactoryBtn" type="button">追加</button></div>';
+    if (canEdit) {
+      html += '  <div class="add-inline"><input type="text" id="newFactory" placeholder="新しい工場名"><button class="btn-secondary" id="addFactoryBtn" type="button">追加</button></div>';
+    }
     html += '</div>';
 
     html += '<div class="card">';
-    html += '  <p class="section-label">機械を管理(' + escapeHtml(factory) + ')</p>';
+    html += '  <p class="section-label">' + (canEdit ? '機械を管理' : '機械') + '(' + escapeHtml(factory) + ')</p>';
     var mList = machinesFor(factory);
     if (mList.length) {
       mList.forEach(function (m) {
         html += '<div class="list-row"><span><span class="li-name">' + escapeHtml(m.name) + '</span> <span class="li-sub">No.' + escapeHtml(m.number) + '</span></span>';
-        html += '<button class="btn-danger-text" data-del-machine="' + m.id + '">削除</button></div>';
+        html += (canEdit ? '<button class="btn-danger-text" data-del-machine="' + m.id + '">削除</button>' : '') + '</div>';
       });
     } else {
       html += '<p class="empty-note">機械が登録されていません。</p>';
     }
-    html += '  <div class="add-inline"><input type="text" id="newMachineName" placeholder="機械名 例) TOSEI HRD-301S" style="flex:2;">';
-    html += '    <input type="text" id="newMachineNum" placeholder="番号" style="flex:1;"></div>';
-    html += '  <button class="btn-secondary" id="addMachineBtn" type="button" style="margin-top:8px; width:100%;">機械を追加</button>';
+    if (canEdit) {
+      html += '  <div class="add-inline"><input type="text" id="newMachineName" placeholder="機械名 例) TOSEI HRD-301S" style="flex:2;">';
+      html += '    <input type="text" id="newMachineNum" placeholder="番号" style="flex:1;"></div>';
+      html += '  <button class="btn-secondary" id="addMachineBtn" type="button" style="margin-top:8px; width:100%;">機械を追加</button>';
+    } else {
+      html += '  <p class="empty-note" style="margin-top:8px;">工場と機械の追加・削除は親機のみ行えます。</p>';
+    }
     html += '</div>';
 
     html += '<div class="card">';
@@ -2018,7 +2027,8 @@
       runSync({ loud: true, rerender: false }).then(function () { renderSettingsTab(); });
     };
 
-    document.getElementById("addFactoryBtn").onclick = function () {
+    var addFactoryBtn = document.getElementById("addFactoryBtn");
+    if (addFactoryBtn) addFactoryBtn.onclick = function () {
       var input = document.getElementById("newFactory");
       var name = input.value.trim();
       if (!name) return;
@@ -2043,7 +2053,8 @@
       };
     });
 
-    document.getElementById("addMachineBtn").onclick = function () {
+    var addMachineBtn = document.getElementById("addMachineBtn");
+    if (addMachineBtn) addMachineBtn.onclick = function () {
       var name = document.getElementById("newMachineName").value.trim();
       var num = document.getElementById("newMachineNum").value.trim();
       if (!name || !num) { toast("機械名と番号を入力してください"); return; }

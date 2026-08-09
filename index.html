@@ -901,13 +901,14 @@
   (function adoptUrlParams() {
     var p = new URLSearchParams(location.search);
     var u = p.get("sync");
-    if (u && u !== syncCfg.url) {
-      syncCfg.url = u;
-      syncCfg.token = p.get("key") || syncCfg.token;
-      syncCfg.role = "child";
-      saveSyncCfg();
-      history.replaceState(null, "", location.pathname);
-    }
+    if (!u) return;
+    // URLが前と同じでも必ず適用する。ここを条件付きにすると、設定済みの端末で
+    // QRを読んでも子機にならず、親機が2台になって構成を上書きし合う。
+    syncCfg.url = u;
+    syncCfg.token = p.get("key") || syncCfg.token;
+    syncCfg.role = "child";
+    saveSyncCfg();
+    history.replaceState(null, "", location.pathname);
   })();
   // 設定リンクを使わず自分で設定した端末は親機とみなす(初回設定者=管理者)。
   if (!syncCfg.role) { syncCfg.role = "parent"; saveSyncCfg(); }
@@ -1593,6 +1594,14 @@
     if (!syncCfg.token) add(false, "合言葉が未入力です", "Apps Script の TOKEN と同じ文字列を入れてください");
     else add(true, "合言葉あり", "*".repeat(syncCfg.token.length));
 
+    // 親機が2台あると構成を上書きし合うため、役割をはっきり見せる。
+    if (isParent()) {
+      add(false, "この端末は親機です",
+        "親機は工場と機械を送る側です。作業者のスマホが親機のままだと構成が受け取れません。現場用の端末は「この端末」欄で子機にしてください。");
+    } else {
+      add(true, "この端末は子機です", "工場と機械は親機から受け取ります");
+    }
+
     return callSheet({ action: "pull", token: syncCfg.token }).then(function (data) {
       add(true, "スプレッドシートに接続できました", "記録 " + ((data.records || []).length) + " 件を確認");
       if (data.config && data.config.factories) {
@@ -1602,7 +1611,7 @@
           isParent() ? "この端末で「今すぐ同期」を押すと送信されます" : "親機で一度同期してもらってください");
       }
       // 構成の保存に対応したスクリプトかどうかを確かめる
-      if (!isParent()) { add(true, "この端末は子機です", "構成は親機から受け取ります"); return steps; }
+      if (!isParent()) return steps;
       return callSheet({ action: "config", token: syncCfg.token, config: configPayload() })
         .then(function () { add(true, "Apps Script は最新です", "構成を保存できました"); return steps; })
         .catch(function (err) {
@@ -2183,8 +2192,8 @@
     html += '    <button class="btn-secondary" id="roleBtn" type="button">' + (isParent() ? '子機にする' : '親機にする') + '</button></div>';
     html += '  <p class="empty-note" style="margin-top:8px;">' +
       (isParent()
-        ? '親機は全データの削除と復元ができます。現場で使うスマホは子機にしてください。'
-        : '子機は記録と同期ができます。親機にするには合言葉の入力が必要です。') + '</p>';
+        ? '親機は工場と機械を<b>送る側</b>です。親機は1台だけにしてください。2台以上あると設定を上書きし合い、機械が反映されなくなります。'
+        : '子機は工場と機械を<b>受け取る側</b>です。記録と同期は通常どおり行えます。') + '</p>';
     html += '</div>';
 
     document.getElementById("main").innerHTML = html;

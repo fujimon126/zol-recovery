@@ -254,6 +254,13 @@
     grid-template-columns: repeat(4, 1fr);
     gap: 6px;
   }
+  .mc-grid.mc-grid-3 { grid-template-columns: repeat(3, 1fr); }
+  .mc-note {
+    font-size: 11px;
+    line-height: 1.5;
+    color: var(--text-muted);
+    margin: 8px 2px 0;
+  }
   .mc-grid > div {
     background: var(--surface-2);
     border-radius: 8px;
@@ -276,11 +283,25 @@
   .field { margin-top: 14px; }
   .field:first-child { margin-top: 0; }
   .field label {
-    display: block;
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
     font-size: 12.5px;
     font-weight: 700;
     color: var(--text-muted);
     margin-bottom: 6px;
+  }
+  .lbl-hint {
+    margin-left: auto;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--accent-strong);
+  }
+  .field-hint {
+    font-size: 11px;
+    line-height: 1.5;
+    color: var(--text-muted);
+    margin: 6px 2px 0;
   }
   .num-input-wrap {
     display: flex;
@@ -913,13 +934,13 @@
       html += '  <p class="empty-note">この工場にはまだ機械が登録されていません。「設定」タブから追加してください。</p>';
     }
 
-    // 選んでいる機械だけの累計。機械ごとの回収率をその場で確かめられる。
+    // ゾールはドライ機側に追加するため、追加量は機械に紐づかない。
+    // 機械別の回収率は工場全体の追加量累計を分母にする。
     var selected = findMachine(state.ui.machineId);
     if (selected) {
-      var mA = 0, mL = 0, mC = 0, mN = 0;
+      var mL = 0, mC = 0, mN = 0;
       facRecs.forEach(function (r) {
         if (r.machineName !== selected.name || r.machineNumber !== selected.number) return;
-        mA += r.addedL || 0;
         mL += r.literL;
         mC += r.count;
         mN++;
@@ -927,21 +948,22 @@
       html += '  <div class="machine-cum">';
       html += '    <p class="mc-title">' + escapeHtml(selected.name) + ' No.' + escapeHtml(selected.number) + ' の累計';
       html += '      <span class="mc-n">' + mN + ' 件</span></p>';
-      html += '    <div class="mc-grid">';
-      html += '      <div><span class="k">追加量</span><span class="v">' + fmtNum(mA) + ' L</span></div>';
+      html += '    <div class="mc-grid mc-grid-3">';
       html += '      <div><span class="k">回収量</span><span class="v">' + fmtNum(mL) + ' L</span></div>';
       html += '      <div><span class="k">回転数</span><span class="v">' + mC + ' 回</span></div>';
-      html += '      <div class="hl"><span class="k">回収率</span><span class="v">' + ratePlain(mL, mA) + '</span></div>';
+      html += '      <div class="hl"><span class="k">回収率</span><span class="v">' + ratePlain(mL, cumA) + '</span></div>';
       html += '    </div>';
+      html += '    <p class="mc-note">回収率 = この機械の回収量 ÷ ' + escapeHtml(factory) + ' の追加量累計 ' + fmtNum(cumA) + ' L</p>';
       html += '  </div>';
     }
     html += '</div>';
 
     html += '<div class="card">';
-    html += '  <div class="field"><label for="addedInput">追加量 (L)</label>';
+    html += '  <div class="field"><label for="addedInput">追加量 (L)<span class="lbl-hint">ドライ機へ追加した分</span></label>';
     html += '    <div class="num-input-wrap"><button type="button" class="stepper" data-added="-0.5">−</button>';
     html += '      <input type="number" id="addedInput" inputmode="decimal" step="0.1" min="0" placeholder="0.0">';
-    html += '      <button type="button" class="stepper" data-added="0.5">＋</button></div></div>';
+    html += '      <button type="button" class="stepper" data-added="0.5">＋</button></div>';
+    html += '    <p class="field-hint">機械別には分けず、' + escapeHtml(factory) + ' の累計に加算されます。追加がなければ空欄のままで構いません。</p></div>';
 
     html += '  <div class="field"><label for="literInput">回収量 (L)</label>';
     html += '    <div class="num-input-wrap"><button type="button" class="stepper" data-step="-0.5">−</button>';
@@ -1070,11 +1092,10 @@
       filtered.forEach(function (r) {
         var k = r.factory + "|" + r.machineName + "|" + r.machineNumber;
         if (!byMachine[k]) {
-          byMachine[k] = { name: r.machineName, number: r.machineNumber, factory: r.factory, added: 0, rec: 0, cnt: 0, n: 0 };
+          byMachine[k] = { name: r.machineName, number: r.machineNumber, factory: r.factory, rec: 0, cnt: 0, n: 0 };
           mOrder.push(k);
         }
         var g = byMachine[k];
-        g.added += r.addedL || 0;
         g.rec += r.literL;
         g.cnt += r.count;
         g.n++;
@@ -1084,14 +1105,15 @@
       html += '<div class="card" style="margin-top:12px;">';
       html += '  <p class="section-label">機械別の集計</p>';
       html += '  <div class="table-scroll"><table class="agg-table">';
-      html += '    <thead><tr><th>機械</th><th>追加量</th><th>回収量</th><th>回転数</th><th>回収率</th></tr></thead><tbody>';
+      html += '    <thead><tr><th>機械</th><th>回収量</th><th>回転数</th><th>回収率</th></tr></thead><tbody>';
       mOrder.forEach(function (k) {
         var g = byMachine[k];
         html += '<tr><th scope="row"><span class="tm-name">' + escapeHtml(g.name) + '</span><span class="tm-sub">No.' + escapeHtml(g.number) + ' ・ ' + escapeHtml(g.factory) + '</span></th>';
-        html += '<td>' + fmtNum(g.added) + '</td><td>' + fmtNum(g.rec) + '</td><td>' + g.cnt + '</td>';
-        html += '<td class="rate">' + ratePlain(g.rec, g.added) + '</td></tr>';
+        html += '<td>' + fmtNum(g.rec) + '</td><td>' + g.cnt + '</td>';
+        html += '<td class="rate">' + ratePlain(g.rec, totalA) + '</td></tr>';
       });
       html += '    </tbody></table></div>';
+      html += '  <p class="empty-note" style="margin-top:8px;">回収率 = 各機械の回収量 ÷ 追加量累計 ' + fmtNum(totalA) + ' L(ゾールはドライ機に追加するため、追加量は機械別に分けていません)</p>';
       html += '</div>';
     }
 

@@ -841,7 +841,8 @@
     var lastRec = null;
     var cumA = 0, cumL = 0, cumC = 0;
     facRecs.forEach(function (r) {
-      if (!lastRec || r.ts.localeCompare(lastRec.ts) > 0) lastRec = r;
+      // 日時は分単位なので同着になりうる。同着なら後から入力した方を「直前」とする。
+      if (!lastRec || r.ts.localeCompare(lastRec.ts) >= 0) lastRec = r;
       cumA += r.addedL || 0;
       cumL += r.literL;
       cumC += r.count;

@@ -1057,6 +1057,9 @@
         fixed[row][col] = true;
       }
 
+      // タイミングパターンを先に引き、あとから位置検出パターンで上書きさせる
+      for (var i = 0; i < size; i++) { set(6, i, i % 2 === 0); set(i, 6, i % 2 === 0); }
+
       // 位置検出パターン(分離帯込み)
       [[3, 3], [3, size - 4], [size - 4, 3]].forEach(function (p) {
         for (var dy = -4; dy <= 4; dy++) for (var dx = -4; dx <= 4; dx++) {
@@ -1064,9 +1067,6 @@
           set(p[0] + dy, p[1] + dx, d !== 2 && d !== 4);
         }
       });
-
-      // タイミングパターン
-      for (var i = 0; i < size; i++) { set(6, i, i % 2 === 0); set(i, 6, i % 2 === 0); }
 
       // 位置合わせパターン
       var ap = ALIGN[ver], na = ap.length;
@@ -1077,8 +1077,8 @@
         }
       }
 
-      // 形式情報・型番情報の領域を先に予約する
-      for (i = 0; i <= 8; i++) { set(8, i, 0); set(i, 8, 0); }
+      // 形式情報・型番情報の領域を先に予約する(6番目はタイミングなので触らない)
+      for (i = 0; i <= 8; i++) { if (i !== 6) { set(8, i, 0); set(i, 8, 0); } }
       for (i = 0; i < 8; i++) { set(8, size - 1 - i, 0); set(size - 1 - i, 8, 0); }
       set(size - 8, 8, 1);
       if (ver >= 7) {

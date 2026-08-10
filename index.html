@@ -537,6 +537,36 @@
     cursor: pointer;
     padding: 4px 2px 4px 6px;
   }
+  .log-item .edit {
+    flex: none;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    color: var(--text);
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    padding: 5px 8px;
+    margin-left: 4px;
+  }
+  .log-item .edit:active { background: var(--surface-3); }
+
+  .edit-target {
+    font-size: 13.5px;
+    font-weight: 700;
+    text-align: center;
+    margin: 0 0 14px;
+    line-height: 1.5;
+  }
+  .edit-target span {
+    display: block;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+  .edit-form { text-align: left; }
+  .edit-form .num-input-wrap input[type="number"] { font-size: 19px; }
 
   /* settings */
   .list-row {
@@ -1541,8 +1571,25 @@
       var known = {};
       state.records.forEach(function (r) { known[r.id] = r; });
       var added = 0;
+      var changed = 0;
       incoming.forEach(function (r) {
-        if (!r || !r.id || known[r.id]) return;
+        if (!r || !r.id) return;
+        var mine = known[r.id];
+        if (mine) {
+          // 他の端末で直された記録を取り込む。
+          // こちらに未送信の修正がある場合は、そちらを優先して上書きしない。
+          if (!mine.synced) return;
+          var inA = Number(r.addedL) || 0, inL = Number(r.literL) || 0, inC = parseInt(r.count, 10) || 0;
+          if ((mine.addedL || 0) !== inA || mine.literL !== inL || mine.count !== inC || mine.ts !== r.ts) {
+            mine.addedL = inA;
+            mine.literL = inL;
+            mine.count = inC;
+            mine.ts = r.ts;
+            mine.recorder = r.recorder || "";
+            changed++;
+          }
+          return;
+        }
         if (r.factory && state.factories.indexOf(r.factory) === -1) state.factories.push(r.factory);
         var machine = state.machines.find(function (m) {
           return m.factory === r.factory && m.name === r.machineName && m.number === String(r.machineNumber);
@@ -1576,9 +1623,9 @@
       renderFactorySelect();
       if (opts.loud) {
         toast(configWarning ? configWarning
-          : "同期しました" + (toPush.length ? " ・送信" + toPush.length + "件" : "") + (added ? " ・受信" + added + "件" : "") + (removed ? " ・削除" + removed + "件" : "") + (cfgChanged ? " ・構成を更新" : ""));
+          : "同期しました" + (toPush.length ? " ・送信" + toPush.length + "件" : "") + (added ? " ・受信" + added + "件" : "") + (changed ? " ・修正" + changed + "件" : "") + (removed ? " ・削除" + removed + "件" : "") + (cfgChanged ? " ・構成を更新" : ""));
       }
-      if (opts.rerender !== false && (added || removed || toPush.length || cfgChanged)) renderMain();
+      if (opts.rerender !== false && (added || changed || removed || toPush.length || cfgChanged)) renderMain();
       return true;
     }).catch(function (err) {
       saveState();
@@ -1944,7 +1991,8 @@
           html += '  <div class="meta"><div class="m-name">' + escapeHtml(r.machineName) + ' No.' + escapeHtml(r.machineNumber) + '</div>';
           html += '    <div class="m-sub">' + escapeHtml(r.factory) + (r.recorder ? " ・ " + escapeHtml(r.recorder) : "") + '</div></div>';
           html += '  <div class="amount"><div class="l">追加 ' + fmtNum(r.addedL || 0) + ' / 回収 ' + fmtNum(r.literL) + ' L</div>';
-          html += '    <div class="c">' + r.count + ' 回</div></div>';
+          html += '    <div class="c">' + r.count + ' 回' + (r.synced ? '' : ' ・未送信') + '</div></div>';
+          html += '  <button class="edit" data-edit="' + r.id + '" title="修正">修正</button>';
           html += '  <button class="del" data-id="' + r.id + '" title="削除">✕</button>';
           html += '</div>';
         });
@@ -1966,6 +2014,9 @@
 
     document.getElementById("filterFactory").onchange = function (e) { historyFilter.factory = e.target.value; renderHistoryTab(); };
     document.getElementById("filterMonth").onchange = function (e) { historyFilter.month = e.target.value; renderHistoryTab(); };
+    document.querySelectorAll(".log-item .edit").forEach(function (btn) {
+      btn.onclick = function () { openEditSheet(btn.getAttribute("data-edit")); };
+    });
     document.querySelectorAll(".log-item .del").forEach(function (btn) {
       btn.onclick = function () {
         var id = btn.getAttribute("data-id");
@@ -2401,6 +2452,71 @@
     document.addEventListener("keydown", qrEscHandler);
     document.getElementById("qrCloseBtn").focus();
   }
+  // ================= 記録の修正 =================
+  // 入力の間違いは子機でも直せる。直した記録は未送信に戻し、
+  // 次の同期でスプレッドシートの同じ行を書き換える。
+  function openEditSheet(id) {
+    var rec = null;
+    state.records.forEach(function (r) { if (r.id === id) rec = r; });
+    if (!rec) { toast("記録が見つかりません"); return; }
+
+    var el = document.getElementById("qrSheet");
+    var html = '<div class="qr-panel" role="dialog" aria-modal="true" aria-label="記録を修正">';
+    html += '  <p class="qr-head">記録を修正</p>';
+    html += '  <p class="edit-target">' + escapeHtml(rec.machineName) + ' No.' + escapeHtml(rec.machineNumber) +
+      '<span>' + escapeHtml(rec.factory) + ' ・ ' + fmtDay(rec.ts) + ' ' + fmtTime(rec.ts) + '</span></p>';
+    html += '  <div class="edit-form">';
+    html += '    <div class="field"><label for="eAdded">追加量 (L)</label>';
+    html += '      <div class="num-input-wrap"><input type="number" id="eAdded" inputmode="decimal" step="0.1" min="0" value="' + (rec.addedL || 0) + '"></div></div>';
+    html += '    <div class="field"><label for="eLiter">回収量 (L)</label>';
+    html += '      <div class="num-input-wrap"><input type="number" id="eLiter" inputmode="decimal" step="0.1" min="0" value="' + rec.literL + '"></div></div>';
+    html += '    <div class="field"><label for="eCount">回転数</label>';
+    html += '      <div class="num-input-wrap"><input type="number" id="eCount" inputmode="numeric" min="0" value="' + rec.count + '"></div></div>';
+    html += '    <div class="field"><label for="eTs">日時</label>';
+    html += '      <input type="datetime-local" id="eTs" value="' + isoToLocalInput(rec.ts) + '"></div>';
+    html += '  </div>';
+    html += '  <div class="btn-row" style="justify-content:center; margin-top:14px;">';
+    html += '    <button class="btn-secondary" id="eSaveBtn" type="button">保存する</button>';
+    html += '    <button class="btn-secondary" id="eCancelBtn" type="button">やめる</button>';
+    html += '  </div>';
+    html += '</div>';
+    el.innerHTML = html;
+    el.classList.add("show");
+    el.onclick = function (e) { if (e.target === el) closeQrSheet(); };
+    document.addEventListener("keydown", qrEscHandler);
+
+    document.getElementById("eCancelBtn").onclick = closeQrSheet;
+    document.getElementById("eSaveBtn").onclick = function () {
+      var a = parseFloat(document.getElementById("eAdded").value);
+      var l = parseFloat(document.getElementById("eLiter").value);
+      var c = parseInt(document.getElementById("eCount").value, 10);
+      var t = document.getElementById("eTs").value;
+      if (isNaN(a) && isNaN(l) && isNaN(c)) { toast("数値を入力してください"); return; }
+      if (!t) { toast("日時を入力してください"); return; }
+
+      rec.addedL = isNaN(a) ? 0 : a;
+      rec.literL = isNaN(l) ? 0 : l;
+      rec.count = isNaN(c) ? 0 : c;
+      rec.ts = new Date(t).toISOString();
+      rec.synced = false;              // 同期でシートの同じ行が書き換わる
+      saveState();
+      closeQrSheet();
+      renderMain();
+      toast("修正しました");
+      if (syncConfigured()) {
+        runSync({ rerender: false }).then(function (ok) {
+          if (ok) { renderMain(); toast("スプレッドシートに反映しました"); }
+        });
+      }
+    };
+  }
+
+  function isoToLocalInput(iso) {
+    var d = new Date(iso);
+    return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate()) +
+      "T" + pad2(d.getHours()) + ":" + pad2(d.getMinutes());
+  }
+
   // 掲示用ポスター。QRは端末の同期設定から作るので、貼り紙と設定が必ず一致する。
   function openPoster(link) {
     var svg = QR.toSvg(link);

@@ -1666,6 +1666,18 @@
 
     return callSheet({ action: "pull", token: syncCfg.token }).then(function (data) {
       add(true, "スプレッドシートに接続できました", "記録 " + ((data.records || []).length) + " 件を確認");
+
+      // 貼り替えただけでは反映されない。古い版が動いていないか確かめる。
+      var need = 3;
+      var got = Number(data.version) || 0;
+      if (got >= need) {
+        add(true, "スクリプトは最新です", "版 " + got);
+      } else {
+        add(false, "古いスクリプトが動いています",
+          "動いている版: " + (got || "不明(版なし)") + " ／ 必要な版: " + need +
+          "。貼り替えだけでは反映されません。デプロイ → デプロイを管理 → 鉛筆マーク → バージョン「新バージョン」→ デプロイ、の順で更新してください。" +
+          "「新しいデプロイ」を選ぶと別のURLになり、アプリは古いURLのままになります。");
+      }
       if (data.config && data.config.factories) {
         add(true, "工場と機械の共有は有効", "工場 " + data.config.factories.length + " ・機械 " + (data.config.machines || []).length);
       } else {

@@ -1666,10 +1666,15 @@
       add(true, "スプレッドシートに接続できました", "記録 " + ((data.records || []).length) + " 件を確認");
 
       // 貼り替えただけでは反映されない。古い版が動いていないか確かめる。
-      var need = 5;
+      var need = 6;
       var got = Number(data.version) || 0;
       if (got >= need) {
         add(true, "スクリプトは最新です", "版 " + got);
+        if (data.dashError) {
+          add(false, "グラフの作成でエラーが出ています", String(data.dashError));
+        } else if (got >= 6) {
+          add(true, "グラフは正常に作られています", "記録が届くたびに自動で更新されます");
+        }
       } else {
         add(false, "古いスクリプトが動いています",
           "動いている版: " + (got || "不明(版なし)") + " ／ 必要な版: " + need +

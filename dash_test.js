@@ -196,11 +196,19 @@ function buildDashboard() {
   var titleStyle = { color: '#17201e', fontSize: 15, bold: true };
   var gridStyle = { color: '#e3e8e5' };
 
+  // グラフは行に固定されるので、次のグラフの位置は高さから決めて重なりを防ぐ。
+  var chartRow = 5;
+  function place_(height) {
+    var at = chartRow;
+    chartRow += Math.ceil(height / 21) + 2;   // 既定の行の高さは約21px
+    return at;
+  }
+
   if (mData.length) {
     dash.insertChart(dash.newChart()
       .setChartType(Charts.ChartType.COMBO)
       .addRange(dash.getRange(mHead, 1, mData.length + 1, 5))
-      .setPosition(5, 8, 0, 0)
+      .setPosition(place_(380), 8, 0, 0)
       .setOption('title', '① 月ごとに、追加した量・回収した量・回収率を見る')
       .setOption('titleTextStyle', titleStyle)
       .setOption('width', 720).setOption('height', 380)
@@ -226,7 +234,7 @@ function buildDashboard() {
     dash.insertChart(dash.newChart()
       .setChartType(Charts.ChartType.COLUMN)
       .addRange(dash.getRange(fHead, 1, fData.length + 1, 3))
-      .setPosition(25, 8, 0, 0)
+      .setPosition(place_(330), 8, 0, 0)
       .setOption('title', '② 工場ごとの追加量と回収量をくらべる')
       .setOption('titleTextStyle', titleStyle)
       .setOption('width', 720).setOption('height', 330)
@@ -241,14 +249,15 @@ function buildDashboard() {
   }
 
   if (xData.length) {
+    var barHeight = Math.max(280, 110 + xData.length * 44);
     dash.insertChart(dash.newChart()
       .setChartType(Charts.ChartType.BAR)
       .addRange(dash.getRange(xHead, 1, xData.length + 1, 2))
-      .setPosition(43, 8, 0, 0)
+      .setPosition(place_(barHeight), 8, 0, 0)
       .setOption('title', '③ 機械別の回収率(高い順)')
       .setOption('titleTextStyle', titleStyle)
       .setOption('width', 720)
-      .setOption('height', Math.max(280, 110 + xData.length * 44))
+      .setOption('height', barHeight)
       .setOption('backgroundColor', { fill: '#ffffff', stroke: '#ccd4d0', strokeWidth: 1 })
       .setOption('chartArea', { left: 190, top: 60, width: '62%', height: '78%' })
       .setOption('legend', { position: 'none' })
@@ -262,7 +271,7 @@ function buildDashboard() {
       .setChartType(Charts.ChartType.PIE)
       .addRange(dash.getRange(xHead, 1, xData.length + 1, 1))
       .addRange(dash.getRange(xHead, 3, xData.length + 1, 1))
-      .setPosition(43 + Math.max(14, xData.length * 2 + 6), 8, 0, 0)
+      .setPosition(place_(380), 8, 0, 0)
       .setOption('title', '④ 回収量の内訳(どの機械がどれだけ回収したか)')
       .setOption('titleTextStyle', titleStyle)
       .setOption('width', 720).setOption('height', 380)
@@ -302,4 +311,3 @@ function banding_(sheet, startRow, rows, cols) {
   sheet.getRange(startRow, 1, rows, cols)
     .setBorder(null, null, true, null, null, true, '#e3e8e5', SpreadsheetApp.BorderStyle.SOLID);
 }
-

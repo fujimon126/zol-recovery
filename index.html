@@ -2418,6 +2418,14 @@
     if (clearAllBtn) clearAllBtn.onclick = function () {
       if (!isParent()) return;
       var linked = syncConfigured();
+      // まだ送っていない記録はシートに無いため、消すと取り戻せない。
+      var pending = unsyncedRecords().length;
+      if (pending) {
+        if (!confirm("まだスプレッドシートへ送っていない記録が " + pending + " 件あります。\n\n" +
+          "このまま消すと、その " + pending + " 件は取り戻せません。\n" +
+          "先に画面上部のバッジをタップして同期することをお勧めします。\n\n" +
+          "それでも消しますか?")) return;
+      }
       if (!confirm(linked
         ? "この端末の記録を消して、スプレッドシートから取り込み直します。\n\n工場と機械の設定は残ります。\nスプレッドシートの記録も消えません。\n\nよろしいですか?"
         : "この端末の記録をすべて削除します。\n工場と機械の設定は残ります。\n\nこの操作は取り消せません。よろしいですか?")) return;

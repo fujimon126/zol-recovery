@@ -354,4 +354,3 @@ function banding_(sheet, startRow, rows, cols) {
 }
 
 
-/** 毎日午前6時に自動でグラフを更新します。 */

@@ -883,8 +883,6 @@
         { id: uid(), factory: f1, name: "QDF-151R", number: "1" }
       ],
       records: [],
-      // この端末で消した記録のID。シートには残すが、同期で戻さないための目印。
-      hiddenIds: [],
       ui: { factory: f1, machineId: null, recorder: "" }
     };
   }
@@ -901,7 +899,7 @@
       var s = JSON.parse(raw);
       if (!s.factories || !s.factories.length) return defaultState();
       s.ui = s.ui || {};
-      if (!s.hiddenIds) s.hiddenIds = [];
+      delete s.hiddenIds;          // 以前の方式の名残り
       return s;
     } catch (e) {
       return defaultState();
@@ -1411,26 +1409,8 @@
       factories: state.factories.slice(),
       machines: state.machines.map(function (m) {
         return { factory: m.factory, name: m.name, number: m.number };
-      }),
-      // 親機が消した記録は、子機からも消えるように一覧を共有する。
-      hiddenIds: (state.hiddenIds || []).slice()
+      })
     };
-  }
-
-  // 親機が消した記録を、この端末からも取り除く(子機用)。
-  function applyRemoteHidden(cfg) {
-    if (isParent()) return 0;
-    var list = (cfg && cfg.hiddenIds) || [];
-    var map = {};
-    list.forEach(function (id) { map[id] = true; });
-    state.hiddenIds = list.slice();
-    var before = state.records.length;
-    state.records = state.records.filter(function (r) {
-      if (!map[r.id]) return true;
-      if (!r.synced) return true;      // まだ送っていない分は消さない
-      return false;
-    });
-    return before - state.records.length;
   }
 
   function applyRemoteConfig(cfg) {
@@ -1576,9 +1556,6 @@
     }).then(function (data) {
       var incoming = data.records || [];
 
-      // 親機が消した記録の一覧を先に取り込む。あとの照合がこれを見るため。
-      var hiddenApplied = applyRemoteHidden(data.config);
-
       // 他の端末で消された記録をこの端末からも消す。
       // シートが正なので、送信済みなのにシートに無い＝削除された、と判断する。
       var onSheet = {};
@@ -1591,19 +1568,12 @@
         return false;
       });
 
-      // この端末で消した記録は、シートに残っていても取り込み直さない。
-      var hidden = {};
-      (state.hiddenIds || []).forEach(function (id) { hidden[id] = true; });
-      // シートから消えた記録は目印も不要になるので落とす(際限なく増えないように)
-      state.hiddenIds = (state.hiddenIds || []).filter(function (id) { return onSheet[id]; });
-
       var known = {};
       state.records.forEach(function (r) { known[r.id] = r; });
       var added = 0;
       var changed = 0;
       incoming.forEach(function (r) {
         if (!r || !r.id) return;
-        if (hidden[r.id]) return;
         var mine = known[r.id];
         if (mine) {
           // 他の端末で直された記録を取り込む。
@@ -1652,9 +1622,9 @@
       renderFactorySelect();
       if (opts.loud) {
         toast(configWarning ? configWarning
-          : "同期しました" + (toPush.length ? " ・送信" + toPush.length + "件" : "") + (added ? " ・受信" + added + "件" : "") + (changed ? " ・修正" + changed + "件" : "") + (removed + hiddenApplied ? " ・削除" + (removed + hiddenApplied) + "件" : "") + (cfgChanged ? " ・構成を更新" : ""));
+          : "同期しました" + (toPush.length ? " ・送信" + toPush.length + "件" : "") + (added ? " ・受信" + added + "件" : "") + (changed ? " ・修正" + changed + "件" : "") + (removed ? " ・削除" + removed + "件" : "") + (cfgChanged ? " ・構成を更新" : ""));
       }
-      if (opts.rerender !== false && (added || changed || removed || hiddenApplied || toPush.length || cfgChanged)) renderMain();
+      if (opts.rerender !== false && (added || changed || removed || toPush.length || cfgChanged)) renderMain();
       return true;
     }).catch(function (err) {
       saveState();
@@ -1697,7 +1667,7 @@
       add(true, "スプレッドシートに接続できました", "記録 " + ((data.records || []).length) + " 件を確認");
 
       // 貼り替えただけでは反映されない。古い版が動いていないか確かめる。
-      var need = 10;
+      var need = 11;
       var got = Number(data.version) || 0;
       if (got >= need) {
         add(true, "スクリプトは最新です", "版 " + got);
@@ -2291,16 +2261,11 @@
     html += '  </div>';
     html += '  <input type="file" id="jsonFile" accept=".json,application/json" class="hidden">';
     if (isParent()) {
-      html += '  <div class="btn-row" style="margin-top:10px;"><button class="btn-danger-text" id="clearAllBtn" type="button">この端末の記録を消す</button></div>';
+      html += '  <div class="btn-row" style="margin-top:10px;"><button class="btn-danger-text" id="clearAllBtn" type="button">記録をすべて削除</button></div>';
       html += '  <p class="empty-note" style="margin-top:6px;">' +
         (syncConfigured()
-          ? '工場と機械の設定は残ります。スプレッドシートの記録も残ります。消した記録は同期しても戻ってきません。'
+          ? 'スプレッドシートの記録も削除され、他のスマホからも消えます。工場と機械の設定は残ります。取り消せませんので、先に「全データをバックアップ」で控えを取ってください。'
           : '工場と機械の設定は残し、この端末の記録だけを消します。') + '</p>';
-      var hiddenCount = (state.hiddenIds || []).length;
-      if (hiddenCount && syncConfigured()) {
-        html += '  <div class="btn-row" style="margin-top:10px;"><button class="btn-secondary" id="restoreHiddenBtn" type="button">消した ' + hiddenCount + ' 件を戻す</button></div>';
-        html += '  <p class="empty-note" style="margin-top:6px;">スプレッドシートに残っている記録を、この端末に取り込み直します。</p>';
-      }
     } else {
       html += '  <p class="empty-note" style="margin-top:10px;">データの消去と復元は親機のみ行えます。</p>';
     }
@@ -2468,45 +2433,37 @@
           "それでも消しますか?")) return;
       }
       if (!confirm(linked
-        ? "この端末の記録を消して、スプレッドシートから取り込み直します。\n\n工場と機械の設定は残ります。\nスプレッドシートの記録も消えません。\n\nよろしいですか?"
+        ? "すべての記録を削除します。\n\n・スプレッドシートの記録も削除されます\n・他のスマホからも消えます\n・工場と機械の設定は残ります\n\nこの操作は取り消せません。よろしいですか?"
         : "この端末の記録をすべて削除します。\n工場と機械の設定は残ります。\n\nこの操作は取り消せません。よろしいですか?")) return;
       var entered = prompt("確認のため合言葉を入力してください。");
       if (entered === null) return;
       if (!syncCfg.token || entered.trim() !== syncCfg.token) { toast("合言葉が違います。中止しました"); return; }
 
-      // 工場と機械は現場の設定なので残す。消すのは記録だけ。
-      // 消した記録を覚えておかないと、次の同期でシートから戻ってきてしまう。
-      var hide = {};
-      (state.hiddenIds || []).forEach(function (id) { hide[id] = true; });
-      state.records.forEach(function (r) { if (r.synced) hide[r.id] = true; });
-      state.hiddenIds = Object.keys(hide);
       var wiped = state.records.length;
 
-      state.records = [];
-      saveState();
-      renderFactorySelect();
-      renderMain();
-      toast(wiped + "件を消しました" + (linked ? "(スプレッドシートには残っています)" : ""));
-      // 子機にも消えたことを伝える(消した一覧は構成と一緒に共有される)
-      if (linked) {
-        pushConfig().then(function (ok) {
-          if (ok) toast("他のスマホからも消えるようにしました");
-          renderSettingsTab();
-        });
-      }
-    };
-
-    var restoreHiddenBtn = document.getElementById("restoreHiddenBtn");
-    if (restoreHiddenBtn) restoreHiddenBtn.onclick = function () {
-      state.hiddenIds = [];
-      saveState();
-      toast("取り込み直しています…");
-      // 先に空の一覧を送らないと、同期で親機の一覧が戻ってきてしまう。
-      pushConfig().then(function () {
-        return runSync({ rerender: false });
-      }).then(function (ok) {
+      if (!linked) {
+        state.records = [];
+        saveState();
+        renderFactorySelect();
         renderMain();
-        toast(ok ? "スプレッドシートから取り込み直しました" : "取り込みに失敗しました。バッジから再同期してください");
+        toast(wiped + "件を消しました");
+        return;
+      }
+
+      // シートから消せば、他の端末も同期のときに自動で消える。
+      // 逆にシートに残したままだと、必ずどこかの端末から戻ってきてしまう。
+      toast("削除しています…");
+      callSheet({ action: "clearAll", token: syncCfg.token }).then(function () {
+        state.records = [];
+        saveState();
+        renderFactorySelect();
+        renderMain();
+        toast("削除しました。他のスマホは同期すると消えます");
+      }).catch(function (err) {
+        // シートを消せていないのに端末だけ消すと、同期で戻ってきて混乱する。
+        toast(err && err.code === "unknownaction"
+          ? "Apps Script の更新が必要です。削除を中止しました"
+          : "スプレッドシートを削除できませんでした。中止しました");
       });
     };
   }

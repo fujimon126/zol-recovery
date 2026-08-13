@@ -883,6 +883,9 @@
         { id: uid(), factory: f1, name: "QDF-151R", number: "1" }
       ],
       records: [],
+      // 回収量はキログラムで量るので、この比重でリットルに換算して記録する。
+      // ゾール(石油系溶剤)はおよそ 0.78 kg/L。
+      density: 0.78,
       ui: { factory: f1, machineId: null, recorder: "" }
     };
   }
@@ -900,6 +903,7 @@
       if (!s.factories || !s.factories.length) return defaultState();
       s.ui = s.ui || {};
       delete s.hiddenIds;          // 以前の方式の名残り
+      if (!(Number(s.density) > 0)) s.density = 0.78;
       return s;
     } catch (e) {
       return defaultState();
@@ -989,6 +993,14 @@
     return v.toLocaleString("ja-JP", { minimumFractionDigits: 0, maximumFractionDigits: 1 });
   }
   // 回収率 = 回収量 ÷ 追加量。追加量が無いと率が定義できない。
+  // 回収量は現場でキログラムで量るので、比重でリットルに直してから記録する。
+  function density() {
+    var d = Number(state.density);
+    return d > 0 ? d : 0.78;
+  }
+  function kgToL(kg) { return Math.round((kg / density()) * 10) / 10; }
+  function lToKg(l) { return Math.round((l * density()) * 10) / 10; }
+
   function rate(recovered, added) {
     if (!added || added <= 0) return null;
     return (recovered / added) * 100;
@@ -1409,20 +1421,31 @@
       factories: state.factories.slice(),
       machines: state.machines.map(function (m) {
         return { factory: m.factory, name: m.name, number: m.number };
-      })
+      }),
+      // 比重がずれると kg→L の換算が端末ごとに変わってしまうので一緒に配る
+      density: density()
     };
   }
 
   function applyRemoteConfig(cfg) {
     if (!cfg || !cfg.factories || !cfg.machines || !cfg.factories.length) return false;
+
+    // 比重は工場・機械とは別に、届いていれば必ず合わせる
+    var densityChanged = false;
+    if (Number(cfg.density) > 0 && Number(cfg.density) !== density()) {
+      state.density = Number(cfg.density);
+      densityChanged = true;
+    }
+
     var before = JSON.stringify(configPayload());
     var after = JSON.stringify({
       factories: cfg.factories,
       machines: cfg.machines.map(function (m) {
         return { factory: m.factory, name: m.name, number: String(m.number) };
-      })
+      }),
+      density: density()
     });
-    if (before === after) return false;
+    if (before === after) return densityChanged;
 
     // 同じ機械には同じIDを保ち、選択中の機械が外れないようにする
     var idByKey = {};
@@ -1667,7 +1690,7 @@
       add(true, "スプレッドシートに接続できました", "記録 " + ((data.records || []).length) + " 件を確認");
 
       // 貼り替えただけでは反映されない。古い版が動いていないか確かめる。
-      var need = 14;
+      var need = 18;
       var got = Number(data.version) || 0;
       if (got >= need) {
         add(true, "スクリプトは最新です", "版 " + got);
@@ -1773,7 +1796,7 @@
     html += '<p class="scope-note">' + escapeHtml(factory) + ' の全期間累計 ・ 回収率 = 回収量累計 ÷ 追加量累計';
     if (lastRec) {
       html += '<br>直前の記録: ' + escapeHtml(lastRec.machineName) + ' No.' + escapeHtml(lastRec.machineNumber) +
-        ' ・ 追加 ' + fmtNum(lastRec.addedL || 0) + 'L / 回収 ' + fmtNum(lastRec.literL) + 'L / ' + lastRec.count + '回';
+        ' ・ 追加 ' + fmtNum(lastRec.addedL || 0) + 'L / 回収 ' + fmtNum(lToKg(lastRec.literL)) + 'kg(' + fmtNum(lastRec.literL) + 'L) / ' + lastRec.count + '回';
     }
     html += '</p>';
 
@@ -1821,10 +1844,11 @@
     html += '      <button type="button" class="stepper" data-added="0.5">＋</button></div>';
     html += '    <p class="field-hint">機械別には分けず、' + escapeHtml(factory) + ' の累計に加算されます。追加がなければ空欄のままで構いません。</p></div>';
 
-    html += '  <div class="field"><label for="literInput">回収量 (L)</label>';
+    html += '  <div class="field"><label for="literInput">回収量 (kg)<span class="lbl-hint">はかりの値</span></label>';
     html += '    <div class="num-input-wrap"><button type="button" class="stepper" data-step="-0.5">−</button>';
     html += '      <input type="number" id="literInput" inputmode="decimal" step="0.1" min="0" placeholder="0.0">';
-    html += '      <button type="button" class="stepper" data-step="0.5">＋</button></div></div>';
+    html += '      <button type="button" class="stepper" data-step="0.5">＋</button></div>';
+    html += '    <p class="field-hint" id="kgHint">キログラムで入力してください。比重 ' + density() + ' kg/L でリットルに換算して記録します。</p></div>';
 
     html += '  <div class="field"><label for="countInput">回転数</label>';
     html += '    <div class="num-input-wrap"><button type="button" class="stepper" data-count="-1">−</button>';
@@ -1864,6 +1888,21 @@
     }
     bindStepper("data-step", literInput);
     bindStepper("data-added", addedInput);
+
+    // 入力しながら換算結果が見えるようにする(何Lで記録されるか分かるように)
+    var kgHint = document.getElementById("kgHint");
+    function showConverted() {
+      var kg = parseFloat(literInput.value);
+      kgHint.textContent = isNaN(kg) || kg <= 0
+        ? "キログラムで入力してください。比重 " + density() + " kg/L でリットルに換算して記録します。"
+        : fmtNum(kg) + " kg → " + fmtNum(kgToL(kg)) + " L として記録します(比重 " + density() + " kg/L)";
+    }
+    literInput.oninput = showConverted;
+    document.querySelectorAll(".stepper[data-step]").forEach(function (btn) {
+      var prev = btn.onclick;
+      btn.onclick = function () { prev(); showConverted(); };
+    });
+    showConverted();
     var countInput = document.getElementById("countInput");
     document.querySelectorAll(".stepper[data-count]").forEach(function (btn) {
       btn.onclick = function () {
@@ -1876,12 +1915,14 @@
     document.getElementById("submitBtn").onclick = function () {
       var m = findMachine(state.ui.machineId);
       if (!m) { toast("機械を選択してください"); return; }
-      var literVal = parseFloat(literInput.value);
+      // 回収量はキログラムで入力されるので、記録する前にリットルへ直す。
+      var kgVal = parseFloat(literInput.value);
+      var literVal = isNaN(kgVal) ? NaN : kgToL(kgVal);
       var addedVal = parseFloat(addedInput.value);
       var countVal = parseInt(countInput.value, 10);
       var tsVal = document.getElementById("tsInput").value;
       var recorder = document.getElementById("recorderInput").value.trim();
-      if (isNaN(literVal) && isNaN(addedVal) && isNaN(countVal)) {
+      if (isNaN(kgVal) && isNaN(addedVal) && isNaN(countVal)) {
         toast("追加量・回収量・回転数のどれかを入力してください"); return;
       }
       if (!tsVal) { toast("日時を入力してください"); return; }
@@ -1902,7 +1943,8 @@
       state.ui.recorder = recorder;
       pendingCount = isNaN(countVal) ? 1 : countVal;
       saveState();
-      toast("記録しました");
+      toast(isNaN(kgVal) ? "記録しました"
+        : "記録しました(" + fmtNum(kgVal) + " kg → " + fmtNum(literVal) + " L)");
       renderMain();
       // Saved locally first, so a dead signal never loses the entry.
       if (syncConfigured()) runSync({ rerender: false });
@@ -2006,7 +2048,7 @@
           html += '  <div class="time">' + fmtTime(r.ts) + '</div>';
           html += '  <div class="meta"><div class="m-name">' + escapeHtml(r.machineName) + ' No.' + escapeHtml(r.machineNumber) + '</div>';
           html += '    <div class="m-sub">' + escapeHtml(r.factory) + (r.recorder ? " ・ " + escapeHtml(r.recorder) : "") + '</div></div>';
-          html += '  <div class="amount"><div class="l">追加 ' + fmtNum(r.addedL || 0) + ' / 回収 ' + fmtNum(r.literL) + ' L</div>';
+          html += '  <div class="amount"><div class="l">追加 ' + fmtNum(r.addedL || 0) + 'L / 回収 ' + fmtNum(lToKg(r.literL)) + 'kg</div>';
           html += '    <div class="c">' + r.count + ' 回' + (r.synced ? '' : ' ・未送信') + '</div></div>';
           html += '  <button class="edit" data-edit="' + r.id + '" title="修正">修正</button>';
           html += '  <button class="del" data-id="' + r.id + '" title="削除">✕</button>';
@@ -2069,13 +2111,13 @@
   }
 
   function exportCsv(records) {
-    var header = ["日時", "工場", "機械名", "機械番号", "追加量L", "回収量L", "回転数", "回収率%", "記録者"];
+    var header = ["日時", "工場", "機械名", "機械番号", "追加量L", "回収量kg", "回収量L", "回転数", "回収率%", "記録者"];
     var lines = [header.join(",")];
     records.slice().sort(function (a, b) { return a.ts.localeCompare(b.ts); }).forEach(function (r) {
       var pct = rate(r.literL, r.addedL || 0);
       lines.push([
         r.ts, r.factory, r.machineName, r.machineNumber,
-        r.addedL || 0, r.literL, r.count,
+        r.addedL || 0, lToKg(r.literL), r.literL, r.count,
         pct === null ? "" : Math.round(pct * 10) / 10,
         r.recorder || ""
       ].map(csvField).join(","));
@@ -2126,15 +2168,29 @@
     text = text.replace(/^﻿/, "");
     var lines = text.split(/\r\n|\n|\r/).filter(function (l) { return l.trim().length; });
     if (lines.length < 2) { toast("読み込めるデータがありません"); return; }
+    // 列の位置は版によって変わるので、見出しの名前で探す(古いCSVも読める)
+    var head = parseCsvLine(lines[0]);
+    function col(name) {
+      for (var i = 0; i < head.length; i++) if (String(head[i]).trim() === name) return i;
+      return -1;
+    }
+    var iTs = col("日時"), iFac = col("工場"), iName = col("機械名"), iNum = col("機械番号");
+    var iAdd = col("追加量L"), iKg = col("回収量kg"), iL = col("回収量L");
+    var iCnt = col("回転数"), iWho = col("記録者");
+    if (iTs < 0 || iName < 0) { toast("見出しの形式が違うため読み込めません"); return; }
+
     var rows = lines.slice(1).map(parseCsvLine);
     var added = 0;
     rows.forEach(function (cols) {
-      if (cols.length < 7) return;
-      var ts = cols[0], factory = cols[1], mName = cols[2], mNum = cols[3];
-      var addedL = parseFloat(cols[4]) || 0;
-      var literL = parseFloat(cols[5]) || 0;
-      var count = parseInt(cols[6], 10) || 0;
-      var recorder = cols[8] || "";
+      if (cols.length < 4) return;
+      var ts = cols[iTs], factory = iFac >= 0 ? cols[iFac] : "", mName = cols[iName];
+      var mNum = iNum >= 0 ? cols[iNum] : "";
+      var addedL = iAdd >= 0 ? (parseFloat(cols[iAdd]) || 0) : 0;
+      // リットル列があればそれを使い、無ければキログラム列から換算する
+      var literL = iL >= 0 ? (parseFloat(cols[iL]) || 0)
+        : (iKg >= 0 ? kgToL(parseFloat(cols[iKg]) || 0) : 0);
+      var count = iCnt >= 0 ? (parseInt(cols[iCnt], 10) || 0) : 0;
+      var recorder = iWho >= 0 ? (cols[iWho] || "") : "";
       var tsIso;
       var d = new Date(ts);
       tsIso = isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString();
@@ -2201,6 +2257,22 @@
     } else {
       html += '  <p class="empty-note" style="margin-top:8px;">工場と機械の追加・削除は親機のみ行えます。</p>';
     }
+    html += '</div>';
+
+    html += '<div class="card">';
+    html += '  <p class="section-label">ゾールの比重</p>';
+    if (canEdit) {
+      html += '  <div class="field"><label for="densityInput">比重 (kg/L)</label>';
+      html += '    <div class="num-input-wrap"><input type="number" id="densityInput" inputmode="decimal" step="0.01" min="0.1" value="' + density() + '"></div>';
+      html += '    <p class="field-hint">回収量はキログラムで入力し、この値でリットルに換算して記録します。' +
+        'ゾール(石油系溶剤)はおよそ 0.78 kg/L です。</p></div>';
+      html += '  <div class="btn-row"><button class="btn-secondary" id="saveDensityBtn" type="button">保存する</button></div>';
+    } else {
+      html += '  <div class="list-row"><span class="li-name">' + density() + ' kg/L</span>';
+      html += '    <span class="li-sub">回収量 kg → L の換算に使います</span></div>';
+      html += '  <p class="empty-note" style="margin-top:8px;">比重の変更は親機のみ行えます。</p>';
+    }
+    html += '  <p class="empty-note" style="margin-top:8px;">例) 10 kg → ' + fmtNum(kgToL(10)) + ' L</p>';
     html += '</div>';
 
     html += '<div class="card">';
@@ -2349,6 +2421,17 @@
         pushConfig();
       };
     });
+
+    var saveDensityBtn = document.getElementById("saveDensityBtn");
+    if (saveDensityBtn) saveDensityBtn.onclick = function () {
+      var d = parseFloat(document.getElementById("densityInput").value);
+      if (!(d > 0)) { toast("0より大きい値を入れてください"); return; }
+      state.density = Math.round(d * 1000) / 1000;
+      saveState();
+      renderSettingsTab();
+      toast("比重を " + state.density + " kg/L にしました");
+      pushConfig();
+    };
 
     var addMachineBtn = document.getElementById("addMachineBtn");
     if (addMachineBtn) addMachineBtn.onclick = function () {
@@ -2507,8 +2590,9 @@
     html += '  <div class="edit-form">';
     html += '    <div class="field"><label for="eAdded">追加量 (L)</label>';
     html += '      <div class="num-input-wrap"><input type="number" id="eAdded" inputmode="decimal" step="0.1" min="0" value="' + (rec.addedL || 0) + '"></div></div>';
-    html += '    <div class="field"><label for="eLiter">回収量 (L)</label>';
-    html += '      <div class="num-input-wrap"><input type="number" id="eLiter" inputmode="decimal" step="0.1" min="0" value="' + rec.literL + '"></div></div>';
+    html += '    <div class="field"><label for="eLiter">回収量 (kg)<span class="lbl-hint">はかりの値</span></label>';
+    html += '      <div class="num-input-wrap"><input type="number" id="eLiter" inputmode="decimal" step="0.1" min="0" value="' + lToKg(rec.literL) + '"></div>';
+    html += '      <p class="field-hint" id="eKgHint"></p></div>';
     html += '    <div class="field"><label for="eCount">回転数</label>';
     html += '      <div class="num-input-wrap"><input type="number" id="eCount" inputmode="numeric" min="0" value="' + rec.count + '"></div></div>';
     html += '    <div class="field"><label for="eTs">日時</label>';
@@ -2525,12 +2609,25 @@
     document.addEventListener("keydown", qrEscHandler);
 
     document.getElementById("eCancelBtn").onclick = closeQrSheet;
+
+    var eLiter = document.getElementById("eLiter");
+    var eKgHint = document.getElementById("eKgHint");
+    function showEditConverted() {
+      var kg = parseFloat(eLiter.value);
+      eKgHint.textContent = isNaN(kg) || kg <= 0
+        ? "キログラムで入力してください(比重 " + density() + " kg/L)"
+        : fmtNum(kg) + " kg → " + fmtNum(kgToL(kg)) + " L として記録します";
+    }
+    eLiter.oninput = showEditConverted;
+    showEditConverted();
+
     document.getElementById("eSaveBtn").onclick = function () {
       var a = parseFloat(document.getElementById("eAdded").value);
-      var l = parseFloat(document.getElementById("eLiter").value);
+      var kg = parseFloat(eLiter.value);
+      var l = isNaN(kg) ? NaN : kgToL(kg);
       var c = parseInt(document.getElementById("eCount").value, 10);
       var t = document.getElementById("eTs").value;
-      if (isNaN(a) && isNaN(l) && isNaN(c)) { toast("数値を入力してください"); return; }
+      if (isNaN(a) && isNaN(kg) && isNaN(c)) { toast("数値を入力してください"); return; }
       if (!t) { toast("日時を入力してください"); return; }
 
       rec.addedL = isNaN(a) ? 0 : a;
@@ -2583,7 +2680,7 @@
       '    <li>QRコードを読み取ってアプリを開く</li>' +
       '    <li><b>工場を選択してください</b></li>' +
       '    <li>作業した<b>機械のボタン</b>を選ぶ</li>' +
-      '    <li><b>追加量 (L)</b>・<b>回収量 (L)</b>・<b>回転数</b> を入力する</li>' +
+      '    <li><b>追加量 (L)</b>・<b>回収量 (kg)</b>・<b>回転数</b> を入力する</li>' +
       '    <li><b>記録する</b> をタップ</li>' +
       '  </ol>' +
       '  <div class="p-note"><b>電波がなくても大丈夫です</b>' +

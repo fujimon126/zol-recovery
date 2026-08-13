@@ -451,6 +451,7 @@
   table.agg-table thead th:first-child { text-align: left; padding-left: 4px; }
   table.agg-table td { font-variant-numeric: tabular-nums; }
   table.agg-table td.rate { font-weight: 700; color: var(--accent-strong); }
+  table.agg-table td.rate.per { color: var(--good); }
   table.agg-table tbody tr:last-child th, table.agg-table tbody tr:last-child td { border-bottom: none; }
   .tm-name { display: block; font-size: 12.5px; }
   .tm-sub { display: block; font-size: 10.5px; color: var(--text-muted); font-weight: 600; margin-top: 1px; }
@@ -1690,7 +1691,7 @@
       add(true, "スプレッドシートに接続できました", "記録 " + ((data.records || []).length) + " 件を確認");
 
       // 貼り替えただけでは反映されない。古い版が動いていないか確かめる。
-      var need = 18;
+      var need = 19;
       var got = Number(data.version) || 0;
       if (got >= need) {
         add(true, "スクリプトは最新です", "版 " + got);
@@ -1796,7 +1797,7 @@
     html += '<p class="scope-note">' + escapeHtml(factory) + ' の全期間累計 ・ 回収率 = 回収量累計 ÷ 追加量累計';
     if (lastRec) {
       html += '<br>直前の記録: ' + escapeHtml(lastRec.machineName) + ' No.' + escapeHtml(lastRec.machineNumber) +
-        ' ・ 追加 ' + fmtNum(lastRec.addedL || 0) + 'L / 回収 ' + fmtNum(lToKg(lastRec.literL)) + 'kg(' + fmtNum(lastRec.literL) + 'L) / ' + lastRec.count + '回';
+        ' ・ 追加 ' + fmtNum(lastRec.addedL || 0) + 'L / 回収 ' + fmtNum(lastRec.literL) + 'L(' + fmtNum(lToKg(lastRec.literL)) + 'kg) / ' + lastRec.count + '回';
     }
     html += '</p>';
 
@@ -2017,17 +2018,21 @@
       html += '<div class="card" style="margin-top:12px;">';
       html += '  <p class="section-label">機械別の集計</p>';
       html += '  <div class="table-scroll"><table class="agg-table">';
-      html += '    <thead><tr><th>機械</th><th>回収量</th><th>回転数</th><th>回収率</th></tr></thead><tbody>';
+      html += '    <thead><tr><th>機械</th><th>回収量</th><th>回転数</th><th>回収率</th><th>1回転あたり</th></tr></thead><tbody>';
       mOrder.forEach(function (k) {
         var g = byMachine[k];
         var pct = maxRec > 0 ? (g.rec / maxRec) * 100 : 0;
+        // 回転数が多い機械ほど回収量は増えるので、1回転あたりに直して比べる
+        var per = g.cnt > 0 ? rate(g.rec / g.cnt, totalA) : null;
         html += '<tr><th scope="row"><span class="tm-name">' + escapeHtml(g.name) + '</span><span class="tm-sub">No.' + escapeHtml(g.number) + ' ・ ' + escapeHtml(g.factory) + '</span>';
         html += '<span class="tm-bar"><span style="width:' + pct.toFixed(1) + '%"></span></span></th>';
         html += '<td>' + fmtNum(g.rec) + '</td><td>' + g.cnt + '</td>';
-        html += '<td class="rate">' + ratePlain(g.rec, totalA) + '</td></tr>';
+        html += '<td class="rate">' + ratePlain(g.rec, totalA) + '</td>';
+        html += '<td class="rate per">' + (per === null ? '—' : fmtNum(Math.round(per * 100) / 100) + ' %') + '</td></tr>';
       });
       html += '    </tbody></table></div>';
-      html += '  <p class="empty-note" style="margin-top:8px;">回収率 = 各機械の回収量 ÷ 追加量累計 ' + fmtNum(totalA) + ' L(ゾールはドライ機に追加するため、追加量は機械別に分けていません)</p>';
+      html += '  <p class="empty-note" style="margin-top:8px;">回収率 = 各機械の回収量 ÷ 追加量累計 ' + fmtNum(totalA) + ' L(ゾールはドライ機に追加するため、追加量は機械別に分けていません)<br>' +
+        '1回転あたり = 回収率 ÷ 回転数。回転数が多い機械ほど回収量は増えるため、回転数の違いをならして比べられます。</p>';
       html += '</div>';
     }
 
@@ -2048,7 +2053,7 @@
           html += '  <div class="time">' + fmtTime(r.ts) + '</div>';
           html += '  <div class="meta"><div class="m-name">' + escapeHtml(r.machineName) + ' No.' + escapeHtml(r.machineNumber) + '</div>';
           html += '    <div class="m-sub">' + escapeHtml(r.factory) + (r.recorder ? " ・ " + escapeHtml(r.recorder) : "") + '</div></div>';
-          html += '  <div class="amount"><div class="l">追加 ' + fmtNum(r.addedL || 0) + 'L / 回収 ' + fmtNum(lToKg(r.literL)) + 'kg</div>';
+          html += '  <div class="amount"><div class="l">追加 ' + fmtNum(r.addedL || 0) + 'L / 回収 ' + fmtNum(r.literL) + 'L</div>';
           html += '    <div class="c">' + r.count + ' 回' + (r.synced ? '' : ' ・未送信') + '</div></div>';
           html += '  <button class="edit" data-edit="' + r.id + '" title="修正">修正</button>';
           html += '  <button class="del" data-id="' + r.id + '" title="削除">✕</button>';

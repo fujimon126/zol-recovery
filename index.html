@@ -1667,7 +1667,7 @@
       add(true, "スプレッドシートに接続できました", "記録 " + ((data.records || []).length) + " 件を確認");
 
       // 貼り替えただけでは反映されない。古い版が動いていないか確かめる。
-      var need = 15;
+      var need = 16;
       var got = Number(data.version) || 0;
       if (got >= need) {
         add(true, "スクリプトは最新です", "版 " + got);

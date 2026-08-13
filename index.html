@@ -2028,7 +2028,8 @@
         html += '<span class="tm-bar"><span style="width:' + pct.toFixed(1) + '%"></span></span></th>';
         html += '<td>' + fmtNum(g.rec) + '</td><td>' + g.cnt + '</td>';
         html += '<td class="rate">' + ratePlain(g.rec, totalA) + '</td>';
-        html += '<td class="rate per">' + (per === null ? '—' : fmtNum(Math.round(per * 100) / 100) + ' %') + '</td></tr>';
+        // 1回転あたりは小さな値になるので、小数2桁まで出さないと差が見えない
+        html += '<td class="rate per">' + (per === null ? '—' : per.toFixed(2) + ' %') + '</td></tr>';
       });
       html += '    </tbody></table></div>';
       html += '  <p class="empty-note" style="margin-top:8px;">回収率 = 各機械の回収量 ÷ 追加量累計 ' + fmtNum(totalA) + ' L(ゾールはドライ機に追加するため、追加量は機械別に分けていません)<br>' +

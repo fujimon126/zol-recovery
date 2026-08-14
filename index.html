@@ -2546,6 +2546,11 @@
         return;
       }
 
+      // 同期の最中に削除を投げると、スプレッドシート側で順番待ちになって失敗しやすい。
+      if (syncStatus.busy) {
+        alert("いま同期中です。少し待ってからもう一度お試しください。");
+        return;
+      }
       // シートから消せば、他の端末も同期のときに自動で消える。
       // 逆にシートに残したままだと、必ずどこかの端末から戻ってきてしまう。
       toast("削除しています…");
@@ -2557,9 +2562,13 @@
         toast("削除しました。他のスマホは同期すると消えます");
       }).catch(function (err) {
         // シートを消せていないのに端末だけ消すと、同期で戻ってきて混乱する。
-        toast(err && err.code === "unknownaction"
-          ? "Apps Script の更新が必要です。削除を中止しました"
-          : "スプレッドシートを削除できませんでした。中止しました");
+        // 何が起きたか分からないと直せないので、原因をそのまま画面に出す。
+        var detail = (err && err.message) ? err.message : String(err);
+        setSyncStatus("削除に失敗: " + detail, true, false);
+        renderSettingsTab();
+        alert(err && err.code === "unknownaction"
+          ? "Apps Script の更新が必要です。削除を中止しました。\n\n" + detail
+          : "スプレッドシートの記録を削除できませんでした。\n端末の記録も消していません。\n\n原因:\n" + detail);
       });
     };
   }

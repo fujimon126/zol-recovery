@@ -1,122 +1,466 @@
-<title>ゾール回収量記録 掲示用ポスター</title>
+<!doctype html>
+<html lang="ja">
+<head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ゾール回収量記録 掲示用ポスター</title>
 <style>
-  @page { size: A4 portrait; margin: 16mm; }
+  @page { size: A4 portrait; margin: 14mm; }
   * { box-sizing: border-box; }
   body {
-    margin: 0;
-    font-family: "Yu Gothic", "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
-    color: #17201e;
-    background: #f2f4f3;
-    display: flex;
-    justify-content: center;
-    padding: 20px;
+    margin: 0; padding: 20px; background: #f2f4f3; color: #17201e;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Kaku Gothic ProN",
+      "Yu Gothic UI", "Noto Sans JP", sans-serif;
   }
-  .sheet {
-    width: 210mm;
-    min-height: 297mm;
-    background: #fff;
-    padding: 22mm 20mm;
-    box-shadow: 0 2px 20px rgba(0,0,0,0.12);
+  .setup {
+    max-width: 620px; margin: 0 auto 18px; background: #fff; border-radius: 10px;
+    padding: 18px 20px; box-shadow: 0 2px 12px rgba(0,0,0,0.08);
   }
-  .eyebrow {
-    font-size: 13pt;
-    font-weight: 700;
-    letter-spacing: 0.18em;
-    color: #c9631a;
-    margin: 0 0 6mm;
+  .setup h1 { font-size: 17px; margin: 0 0 8px; }
+  .setup p { font-size: 13px; line-height: 1.7; color: #4d5a56; margin: 0 0 12px; }
+  .setup input {
+    width: 100%; font-size: 13px; padding: 10px 12px; border: 1px solid #ccd4d0;
+    border-radius: 8px; font-family: Consolas, "Courier New", monospace;
   }
-  h1 {
-    font-size: 30pt;
-    font-weight: 800;
-    line-height: 1.2;
-    margin: 0 0 4mm;
-    text-wrap: balance;
+  .setup .row { display: flex; gap: 8px; margin-top: 10px; }
+  .setup button {
+    font-size: 14px; font-weight: 700; padding: 10px 18px; border-radius: 8px;
+    border: 1px solid #ccd4d0; background: #17201e; color: #fff; cursor: pointer;
   }
-  .lead {
-    font-size: 12.5pt;
-    color: #4d5a56;
-    margin: 0 0 12mm;
-    line-height: 1.7;
+  .setup button.sub { background: #fff; color: #17201e; }
+  .msg { font-size: 12.5px; margin-top: 10px; color: #b23b2e; min-height: 1.2em; }
+
+  .poster {
+    display: none; background: #fff; max-width: 620px; margin: 0 auto;
+    padding: 30px 32px 26px; border-radius: 4px; box-shadow: 0 12px 40px rgba(0,0,0,0.15);
   }
-  .qr-block {
-    display: flex;
-    align-items: center;
-    gap: 12mm;
-    border: 2.5px solid #17201e;
-    border-radius: 4mm;
-    padding: 10mm;
-    margin-bottom: 12mm;
+  .poster.show { display: block; }
+  .p-eyebrow { font-size: 12px; font-weight: 700; letter-spacing: 0.2em; color: #c9631a; margin: 0 0 10px; }
+  .poster h2 { font-size: 30px; line-height: 1.25; font-weight: 800; margin: 0 0 10px; }
+  .p-lead { font-size: 14px; line-height: 1.7; color: #4d5a56; margin: 0 0 18px; }
+  .p-qr-block {
+    display: flex; align-items: center; gap: 20px;
+    border: 2.5px solid #17201e; border-radius: 10px; padding: 18px; margin-bottom: 18px;
   }
-  .qr-block img { width: 62mm; height: 62mm; flex: none; }
-  .qr-side .big { font-size: 17pt; font-weight: 800; line-height: 1.4; }
-  .qr-side .url {
-    margin-top: 5mm;
-    font-size: 10.5pt;
-    font-family: Consolas, "Courier New", monospace;
-    background: #eef1ef;
-    padding: 3mm 4mm;
-    border-radius: 2mm;
-    word-break: break-all;
+  .p-qr { width: 190px; flex: none; }
+  .p-qr svg { display: block; width: 100%; height: auto; }
+  .p-big { font-size: 19px; font-weight: 800; line-height: 1.45; }
+  .p-small { font-size: 12.5px; color: #4d5a56; margin-top: 10px; line-height: 1.6; }
+  .poster h3 {
+    font-size: 15px; font-weight: 800; margin: 0 0 12px;
+    padding-bottom: 6px; border-bottom: 2px solid #c9631a;
   }
-  h2 {
-    font-size: 14pt;
-    font-weight: 800;
-    margin: 0 0 5mm;
-    padding-bottom: 2.5mm;
-    border-bottom: 2px solid #c9631a;
+  .poster ol { margin: 0 0 18px; padding-left: 22px; }
+  .poster ol li { font-size: 14.5px; line-height: 1.85; }
+  .p-note {
+    background: #fdf3e9; border-left: 4px solid #c9631a; padding: 13px 16px;
+    font-size: 12.5px; line-height: 1.75;
   }
-  ol { margin: 0 0 10mm; padding-left: 6mm; }
-  li { font-size: 12pt; line-height: 1.9; margin-bottom: 1.5mm; }
-  .note {
-    background: #fdf3e9;
-    border-left: 4px solid #c9631a;
-    padding: 6mm 7mm;
-    font-size: 11pt;
-    line-height: 1.8;
-  }
-  .note strong { display: block; margin-bottom: 2mm; font-size: 11.5pt; }
-  footer {
-    margin-top: 12mm;
-    padding-top: 4mm;
-    border-top: 1px solid #ccd4d0;
-    font-size: 9.5pt;
-    color: #77837f;
+  .p-note b { display: block; margin-bottom: 4px; font-size: 13px; }
+  .p-warn {
+    margin-top: 14px; border: 1.5px dashed #b23b2e; color: #b23b2e;
+    border-radius: 6px; padding: 10px 14px; font-size: 12px; line-height: 1.7; font-weight: 600;
   }
   @media print {
     body { background: #fff; padding: 0; }
-    .sheet { box-shadow: none; width: auto; min-height: auto; padding: 0; }
+    .setup { display: none !important; }
+    .poster { box-shadow: none; border-radius: 0; max-width: none; padding: 0;
+      page-break-inside: avoid; break-inside: avoid; }
   }
 </style>
+</head>
+<body>
 
-<div class="sheet">
-  <p class="eyebrow">ゾール回収量測定</p>
-  <h1>回収したら<br>スマホで記録してください</h1>
-  <p class="lead">紙のチェック用紙の代わりに、スマートフォンから追加量・回収量・回転数を入力します。<br>入力した内容は自動でスプレッドシートにまとまり、回収率も計算されます。</p>
+<div class="setup">
+  <h1>掲示用ポスターを作る</h1>
+  <p>
+    アプリの <b>設定 → 設定リンクをコピー</b> で得たリンクを貼り付けてください。<br>
+    同期URLと合言葉が入ったQRコードのポスターを作ります。読み取ったスマホは、
+    そのまま記録を始められます。
+  </p>
+  <input id="link" type="text" placeholder="https://fujimon126.github.io/zol-recovery/?sync=...&key=...">
+  <div class="row">
+    <button id="make" type="button">ポスターを作る</button>
+    <button id="print" class="sub" type="button">印刷する</button>
+  </div>
+  <p class="msg" id="msg"></p>
+</div>
 
-  <div class="qr-block">
-    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAyAAAAMgAQMAAADhvpQrAAAABlBMVEX///8AAABVwtN+AAAACXBIWXMAAA7EAAAOxAGVKw4bAAADZUlEQVR4nO3dPVbjMBQGUHEoKFmCl5KlJUvLUrwEyhScaEjs6M/yDDNDg7hfReJnXZXv6MUmBBERERk0r7Gb+X7x6eOvc1lzTl9XOe+u8waBQCAQCAQCGRB5D02OW+RWU919CmGK8ZLu2VkHAoFAIBAIBDIqkm6+JuRl+RBSC/rx16Fcd0X6G7lCIBAIBAKBQH4iEtMCVXJNgEAgEAgEAoFASiS3qesh5uHemd7OP0/3z9VGIBAIBAKBQCCQL0aqVMghdnNK1RXSrgOBQCAQCAQCGRHppUI+Kp9jMY9f29Spmcf3AoFAIBAIBAIZDtlP1aa+l1/HWLap/xUIBAKBQCAQyLdD2hH3mvl+Mb+AaH+cHtM6Va4QCAQCgUAgkEGRUB5ivpU/pKyQmFYL5UFnL3OqOxYHnRAIBAKBQCAQyL8ise1z433WvlMT+/P4jJSBQCAQCAQCgYyCVKepVZuakdc0jz80r8+M5Uby15em3YVAIBAIBAKBjIXEcrU1c0JiOq2M21zCNovdDv0hEAgEAoFAIKMgO5lSr5mR8GhTnzpczpyqj394qhwCgUAgEAgE8o2R+GhTd0blueals1ooD0On+8VemwqBQCAQCAQCgXwSWQ9Qw+PXmrecHpV1lhteOjXnElnSm8dDIBAIBAKBQAZBdl5stMlScFk+HFMr25ZNaZ0UCAQCgUAgEMhYSEyV64fTtgXNyUhMtx7KgsVeN/sGgUAgEAgEAhkQWdvUc3jkmFrQlHyI+ZJa0Kl8Jui1g5QXIRAIBAKBQCDjIbF8L9GUHv45p5rQjNNDs5GMhM+9/AgCgUAgEAgEAvk9sizwlh5Ln0OR/X45pP1VSLar01QIBAKBQCAQyAjIftbKc3lSuiBP7brZbq9AIBAIBAKBQIZDXtuvl8xptf0F5mYj72VN75kgCAQCgUAgEMggyHtocnwscKs83HvN/G/EL80YPLQbyfuL29NUCAQCgUAgEMgoSHzk2kc2Od6rL+Wta+bdeTwEAoFAIBAIBPL1SNzO4zOS++WpFCEQCAQCgUAgPwuJsflFZ1uT05vrn4qLEAgEAoFAIJDBkCppgWqofsuhfGNm2J5o3jJtZ/YQCAQCgUAgkLGQXubdNvWS7LnZ23N567W8AoFAIBAIBAKB/B0iIiIiA+YXu/5rJTvqXFIAAAAASUVORK5CYII=" alt="アプリのQRコード">
-    <div class="qr-side">
-      <div class="big">スマホのカメラで<br>読み取ってください</div>
-      <div class="url">https://fujimon126.github.io/zol-recovery/</div>
+<div class="poster" id="poster">
+  <p class="p-eyebrow">ゾール回収量測定</p>
+  <h2>回収したら<br>スマホで記録してください</h2>
+  <p class="p-lead">紙のチェック用紙の代わりに、スマートフォンから追加量・回収量・回転数を入力します。入力した内容は自動でスプレッドシートにまとまります。</p>
+
+  <div class="p-qr-block">
+    <div class="p-qr" id="qr"></div>
+    <div>
+      <div class="p-big">スマホのカメラで<br>読み取ってください</div>
+      <div class="p-small">初回の設定は不要です。読み取るだけで記録を始められます。</div>
     </div>
   </div>
 
-  <h2>記録のしかた</h2>
+  <h3>記録のしかた</h3>
   <ol>
     <li>QRコードを読み取ってアプリを開く</li>
-    <li>工場を確認する(画面いちばん上)</li>
-    <li>作業した<strong>機械のボタン</strong>を選ぶ</li>
-    <li><strong>追加量(L)</strong>・<strong>回収量(L)</strong>・<strong>回転数</strong> を入力する</li>
-    <li><strong>記録する</strong> をタップ</li>
+    <li><b>工場を選択してください</b></li>
+    <li>作業した<b>機械のボタン</b>を選ぶ</li>
+    <li><b>追加量 (L)</b>・<b>回収量 (kg)</b>・<b>回転数</b> を入力する</li>
+    <li><b>記録する</b> をタップ</li>
   </ol>
 
-  <div class="note">
-    <strong>電波がなくても大丈夫です</strong>
+  <div class="p-note"><b>電波がなくても大丈夫です</b>
     記録はまずスマホの中に保存され、電波が戻ったときに自動でスプレッドシートへ送られます。
     画面の上に「未送信 ◯件」と出ているときは、電波の良い場所でアプリを開いてください。
-    バッジをタップすると手動で送ることもできます。
-  </div>
+    その表示をタップすると手動で送ることもできます。</div>
 
-  <footer>ゾール回収量記録アプリ ／ 初回のみ同期設定が必要です。管理者にお問い合わせください。</footer>
+  <div class="p-warn">この紙のQRコードには接続用の合言葉が入っています。
+    社外の人の目に触れる場所には貼らないでください。</div>
 </div>
+
+<script>
+(function () {
+  "use strict";
+  // 合言葉を外部サービスへ送らずに済むよう、QRコードは端末内で組み立てる。
+  // バイトモード・誤り訂正レベルM、型番1〜15に対応。
+  var QR = (function () {
+    var EXP = new Uint8Array(512), LOG = new Uint8Array(256);
+    (function () {
+      var x = 1;
+      for (var i = 0; i < 255; i++) {
+        EXP[i] = x; LOG[x] = i;
+        x <<= 1;
+        if (x & 0x100) x ^= 0x11d;
+      }
+      for (var j = 255; j < 512; j++) EXP[j] = EXP[j - 255];
+    })();
+    function gmul(a, b) { return (a === 0 || b === 0) ? 0 : EXP[LOG[a] + LOG[b]]; }
+
+    function genPoly(n) {
+      var g = [1];
+      for (var i = 0; i < n; i++) {
+        var r = new Array(g.length + 1);
+        for (var k = 0; k < r.length; k++) r[k] = 0;
+        for (var j = 0; j < g.length; j++) {
+          r[j] ^= g[j];
+          r[j + 1] ^= gmul(g[j], EXP[i]);
+        }
+        g = r;
+      }
+      return g;
+    }
+
+    function ecBytes(data, ecLen) {
+      var gen = genPoly(ecLen);
+      var res = new Array(data.length + ecLen);
+      for (var i = 0; i < res.length; i++) res[i] = i < data.length ? data[i] : 0;
+      for (var i2 = 0; i2 < data.length; i2++) {
+        var f = res[i2];
+        if (!f) continue;
+        for (var j = 0; j < gen.length; j++) res[i2 + j] ^= gmul(gen[j], f);
+      }
+      return res.slice(data.length);
+    }
+
+    // 型番ごとの [ECコード語数, グループ1ブロック数, グループ1データ語数, グループ2ブロック数, グループ2データ語数]
+    var RS_M = {
+      1: [10, 1, 16, 0, 0], 2: [16, 1, 28, 0, 0], 3: [26, 1, 44, 0, 0],
+      4: [18, 2, 32, 0, 0], 5: [24, 2, 43, 0, 0], 6: [16, 4, 27, 0, 0],
+      7: [18, 4, 31, 0, 0], 8: [22, 2, 38, 2, 39], 9: [22, 3, 36, 2, 37],
+      10: [26, 4, 43, 1, 44], 11: [30, 1, 50, 4, 51], 12: [22, 6, 36, 2, 37],
+      13: [22, 8, 37, 1, 38], 14: [24, 4, 40, 5, 41], 15: [24, 5, 41, 5, 42]
+    };
+    var ALIGN = {
+      1: [], 2: [6, 18], 3: [6, 22], 4: [6, 26], 5: [6, 30], 6: [6, 34],
+      7: [6, 22, 38], 8: [6, 24, 42], 9: [6, 26, 46], 10: [6, 28, 50],
+      11: [6, 30, 54], 12: [6, 32, 58], 13: [6, 34, 62],
+      14: [6, 26, 46, 66], 15: [6, 26, 48, 70]
+    };
+
+    function utf8Bytes(str) {
+      var out = [], i, c;
+      for (i = 0; i < str.length; i++) {
+        c = str.charCodeAt(i);
+        if (c < 0x80) out.push(c);
+        else if (c < 0x800) { out.push(0xc0 | (c >> 6), 0x80 | (c & 63)); }
+        else if (c < 0xd800 || c >= 0xe000) { out.push(0xe0 | (c >> 12), 0x80 | ((c >> 6) & 63), 0x80 | (c & 63)); }
+        else {
+          i++;
+          c = 0x10000 + (((c & 0x3ff) << 10) | (str.charCodeAt(i) & 0x3ff));
+          out.push(0xf0 | (c >> 18), 0x80 | ((c >> 12) & 63), 0x80 | ((c >> 6) & 63), 0x80 | (c & 63));
+        }
+      }
+      return out;
+    }
+
+    function dataCodewords(ver) {
+      var t = RS_M[ver];
+      return t[1] * t[2] + t[3] * t[4];
+    }
+
+    function pickVersion(len) {
+      for (var v = 1; v <= 15; v++) {
+        var countBits = v <= 9 ? 8 : 16;
+        if (4 + countBits + 8 * len <= 8 * dataCodewords(v)) return v;
+      }
+      return null;
+    }
+
+    function buildCodewords(bytes, ver) {
+      var countBits = ver <= 9 ? 8 : 16;
+      var bits = [];
+      function push(val, n) { for (var i = n - 1; i >= 0; i--) bits.push((val >> i) & 1); }
+      push(4, 4);                    // バイトモード
+      push(bytes.length, countBits);
+      bytes.forEach(function (b) { push(b, 8); });
+
+      var cap = dataCodewords(ver) * 8;
+      for (var t = 0; t < 4 && bits.length < cap; t++) bits.push(0);
+      while (bits.length % 8 !== 0) bits.push(0);
+
+      var dat = [];
+      for (var i = 0; i < bits.length; i += 8) {
+        var b = 0;
+        for (var j = 0; j < 8; j++) b = (b << 1) | bits[i + j];
+        dat.push(b);
+      }
+      var pad = [0xEC, 0x11], p = 0;
+      while (dat.length < dataCodewords(ver)) dat.push(pad[p++ % 2]);
+
+      // ブロックに分けてEC語を付け、規格どおり交互に並べ直す
+      var t2 = RS_M[ver], ecLen = t2[0];
+      var blocks = [], ecs = [], pos = 0, i2;
+      for (i2 = 0; i2 < t2[1]; i2++) { blocks.push(dat.slice(pos, pos + t2[2])); pos += t2[2]; }
+      for (i2 = 0; i2 < t2[3]; i2++) { blocks.push(dat.slice(pos, pos + t2[4])); pos += t2[4]; }
+      blocks.forEach(function (b) { ecs.push(ecBytes(b, ecLen)); });
+
+      var out = [], maxLen = Math.max(t2[2], t2[4] || 0), k;
+      for (k = 0; k < maxLen; k++) {
+        for (i2 = 0; i2 < blocks.length; i2++) if (k < blocks[i2].length) out.push(blocks[i2][k]);
+      }
+      for (k = 0; k < ecLen; k++) {
+        for (i2 = 0; i2 < ecs.length; i2++) out.push(ecs[i2][k]);
+      }
+      return out;
+    }
+
+    function formatBits(mask) {
+      var data = (0 << 3) | mask;       // レベルM = 00
+      var rem = data;
+      for (var i = 0; i < 10; i++) rem = (rem << 1) ^ ((rem >>> 9) * 0x537);
+      return ((data << 10) | rem) ^ 0x5412;
+    }
+    function versionInfoBits(ver) {
+      var rem = ver;
+      for (var i = 0; i < 12; i++) rem = (rem << 1) ^ ((rem >>> 11) * 0x1F25);
+      return (ver << 12) | rem;
+    }
+
+    function make(text) {
+      var bytes = utf8Bytes(text);
+      var ver = pickVersion(bytes.length);
+      if (!ver) return null;
+      var size = 17 + 4 * ver;
+      var m = [], fixed = [], r, c;
+      for (r = 0; r < size; r++) {
+        m.push(new Array(size).fill(0));
+        fixed.push(new Array(size).fill(false));
+      }
+      function set(row, col, v) {
+        if (row < 0 || col < 0 || row >= size || col >= size) return;
+        m[row][col] = v ? 1 : 0;
+        fixed[row][col] = true;
+      }
+
+      // タイミングパターンを先に引き、あとから位置検出パターンで上書きさせる
+      for (var i = 0; i < size; i++) { set(6, i, i % 2 === 0); set(i, 6, i % 2 === 0); }
+
+      // 位置検出パターン(分離帯込み)
+      [[3, 3], [3, size - 4], [size - 4, 3]].forEach(function (p) {
+        for (var dy = -4; dy <= 4; dy++) for (var dx = -4; dx <= 4; dx++) {
+          var d = Math.max(Math.abs(dx), Math.abs(dy));
+          set(p[0] + dy, p[1] + dx, d !== 2 && d !== 4);
+        }
+      });
+
+      // 位置合わせパターン
+      var ap = ALIGN[ver], na = ap.length;
+      for (var ai = 0; ai < na; ai++) for (var aj = 0; aj < na; aj++) {
+        if ((ai === 0 && aj === 0) || (ai === 0 && aj === na - 1) || (ai === na - 1 && aj === 0)) continue;
+        for (var dy2 = -2; dy2 <= 2; dy2++) for (var dx2 = -2; dx2 <= 2; dx2++) {
+          set(ap[ai] + dy2, ap[aj] + dx2, Math.max(Math.abs(dx2), Math.abs(dy2)) !== 1);
+        }
+      }
+
+      // 形式情報・型番情報の領域を先に予約する(6番目はタイミングなので触らない)
+      for (i = 0; i <= 8; i++) { if (i !== 6) { set(8, i, 0); set(i, 8, 0); } }
+      for (i = 0; i < 8; i++) { set(8, size - 1 - i, 0); set(size - 1 - i, 8, 0); }
+      set(size - 8, 8, 1);
+      if (ver >= 7) {
+        for (i = 0; i < 18; i++) { set(size - 11 + i % 3, Math.floor(i / 3), 0); set(Math.floor(i / 3), size - 11 + i % 3, 0); }
+      }
+
+      // データの配置(右下から2列ずつジグザグ)
+      var cw = buildCodewords(bytes, ver), bitIdx = 0, upward = true;
+      var totalBits = cw.length * 8;
+      function nextBit() {
+        if (bitIdx >= totalBits) return 0;
+        var b = (cw[bitIdx >> 3] >> (7 - (bitIdx & 7))) & 1;
+        bitIdx++;
+        return b;
+      }
+      for (var col = size - 1; col > 0; col -= 2) {
+        if (col === 6) col--;
+        for (var k = 0; k < size; k++) {
+          var row = upward ? size - 1 - k : k;
+          for (var cc = 0; cc < 2; cc++) {
+            var cx = col - cc;
+            if (fixed[row][cx]) continue;
+            m[row][cx] = nextBit();
+          }
+        }
+        upward = !upward;
+      }
+
+      function maskFn(idx, row, col) {
+        switch (idx) {
+          case 0: return (row + col) % 2 === 0;
+          case 1: return row % 2 === 0;
+          case 2: return col % 3 === 0;
+          case 3: return (row + col) % 3 === 0;
+          case 4: return (Math.floor(row / 2) + Math.floor(col / 3)) % 2 === 0;
+          case 5: return ((row * col) % 2) + ((row * col) % 3) === 0;
+          case 6: return (((row * col) % 2) + ((row * col) % 3)) % 2 === 0;
+          default: return (((row + col) % 2) + ((row * col) % 3)) % 2 === 0;
+        }
+      }
+
+      function penalty(g) {
+        var s = 0, i, j, run, dark = 0;
+        // 規則1: 同色5連以上
+        for (i = 0; i < size; i++) {
+          run = 1;
+          for (j = 1; j < size; j++) {
+            if (g[i][j] === g[i][j - 1]) { run++; if (run === 5) s += 3; else if (run > 5) s += 1; }
+            else run = 1;
+          }
+          run = 1;
+          for (j = 1; j < size; j++) {
+            if (g[j][i] === g[j - 1][i]) { run++; if (run === 5) s += 3; else if (run > 5) s += 1; }
+            else run = 1;
+          }
+        }
+        // 規則2: 2x2の同色ブロック
+        for (i = 0; i < size - 1; i++) for (j = 0; j < size - 1; j++) {
+          var v = g[i][j];
+          if (v === g[i][j + 1] && v === g[i + 1][j] && v === g[i + 1][j + 1]) s += 3;
+        }
+        // 規則3: 1:1:3:1:1 の紛らわしい並び
+        var pat1 = [1, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0], pat2 = [0, 0, 0, 0, 1, 0, 1, 1, 1, 0, 1];
+        function matches(get, i0, j0) {
+          var a = true, b = true;
+          for (var t = 0; t < 11; t++) {
+            var v2 = get(i0, j0 + t);
+            if (v2 !== pat1[t]) a = false;
+            if (v2 !== pat2[t]) b = false;
+          }
+          return a || b;
+        }
+        for (i = 0; i < size; i++) for (j = 0; j + 10 < size; j++) {
+          if (matches(function (a, b) { return g[a][b]; }, i, j)) s += 40;
+          if (matches(function (a, b) { return g[b][a]; }, i, j)) s += 40;
+        }
+        // 規則4: 明暗の偏り
+        for (i = 0; i < size; i++) for (j = 0; j < size; j++) if (g[i][j]) dark++;
+        var pct = (dark * 100) / (size * size);
+        s += Math.floor(Math.abs(pct - 50) / 5) * 10;
+        return s;
+      }
+
+      var best = null, bestScore = Infinity, bestMask = 0;
+      for (var mk = 0; mk < 8; mk++) {
+        var g2 = [];
+        for (r = 0; r < size; r++) {
+          g2.push(m[r].slice());
+          for (c = 0; c < size; c++) {
+            if (!fixed[r][c] && maskFn(mk, r, c)) g2[r][c] ^= 1;
+          }
+        }
+        // 形式情報を入れてから採点する
+        var fb = formatBits(mk);
+        function put(row, col, v) { g2[row][col] = v; }
+        for (i = 0; i <= 5; i++) put(i, 8, (fb >> i) & 1);
+        put(7, 8, (fb >> 6) & 1);
+        put(8, 8, (fb >> 7) & 1);
+        put(8, 7, (fb >> 8) & 1);
+        for (i = 9; i < 15; i++) put(8, 14 - i, (fb >> i) & 1);
+        for (i = 0; i < 8; i++) put(8, size - 1 - i, (fb >> i) & 1);
+        for (i = 8; i < 15; i++) put(size - 15 + i, 8, (fb >> i) & 1);
+        put(size - 8, 8, 1);
+        if (ver >= 7) {
+          var vb = versionInfoBits(ver);
+          for (i = 0; i < 18; i++) {
+            var bit = (vb >> i) & 1;
+            put(Math.floor(i / 3), size - 11 + i % 3, bit);
+            put(size - 11 + i % 3, Math.floor(i / 3), bit);
+          }
+        }
+        var sc = penalty(g2);
+        if (sc < bestScore) { bestScore = sc; best = g2; bestMask = mk; }
+      }
+      return { size: size, version: ver, mask: bestMask, modules: best };
+    }
+
+    function toSvg(text, opts) {
+      opts = opts || {};
+      var q = opts.quiet == null ? 4 : opts.quiet;
+      var qr = make(text);
+      if (!qr) return null;
+      var n = qr.size, total = n + q * 2, d = "";
+      for (var r = 0; r < n; r++) for (var c = 0; c < n; c++) {
+        if (qr.modules[r][c]) d += "M" + (c + q) + " " + (r + q) + "h1v1h-1z";
+      }
+      return '<svg class="qr" viewBox="0 0 ' + total + ' ' + total + '" shape-rendering="crispEdges" ' +
+        'xmlns="http://www.w3.org/2000/svg" role="img" aria-label="設定用QRコード">' +
+        '<rect width="' + total + '" height="' + total + '" fill="#ffffff"/>' +
+        '<path d="' + d + '" fill="#000000"/></svg>';
+    }
+
+    return { make: make, toSvg: toSvg };
+  })();
+
+
+  var linkEl = document.getElementById('link');
+  var msgEl = document.getElementById('msg');
+  var posterEl = document.getElementById('poster');
+
+  function build() {
+    var link = linkEl.value.trim();
+    msgEl.textContent = '';
+    if (!link) { msgEl.textContent = '設定リンクを貼り付けてください。'; return; }
+    if (link.indexOf('sync=') < 0) {
+      msgEl.textContent = 'このリンクには同期の設定が入っていません。アプリの「設定リンクをコピー」で得たリンクを貼り付けてください。';
+      return;
+    }
+    var svg = QR.toSvg(link);
+    if (!svg) { msgEl.textContent = 'リンクが長すぎてQRコードを作れませんでした。'; return; }
+    document.getElementById('qr').innerHTML = svg;
+    posterEl.classList.add('show');
+    posterEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  document.getElementById('make').onclick = build;
+  document.getElementById('print').onclick = function () {
+    if (!posterEl.classList.contains('show')) { build(); }
+    if (posterEl.classList.contains('show')) window.print();
+  };
+  linkEl.onkeydown = function (e) { if (e.key === 'Enter') build(); };
+
+  // 設定リンクをそのまま開いた場合にも対応する
+  if (location.search.indexOf('sync=') >= 0) {
+    linkEl.value = location.href;
+    build();
+  }
+})();
+</script>
+</body>
+</html>
